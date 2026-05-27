@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import SnakeGame from './SnakeGame';
 
 const MILAN_URL =
   'https://www.google.com/maps/place/Milan,+Metropolitan+City+of+Milan/@45.4627042,9.095332,12z/data=!3m1!4b1!4m6!3m5!1s0x4786c1493f1275e7:0x3cffcd13c6740e8d!8m2!3d45.468503!4d9.1824027!16zL20vMDk0N2w?entry=ttu&g_ep=EgoyMDI2MDExMS4wIKXMDSoKLDEwMDc5MjA3M0gBUAM%3D';
 
 const HELSINKI_URL =
   'https://www.google.com/maps/place/Helsinki,+Finland/@60.1097542,24.689061,10z/data=!3m1!4b1!4m6!3m5!1s0x46920bc796210691:0xcd4ebd843be2f763!8m2!3d60.1698557!4d24.9383791!16zL20vMDNraG4?entry=ttu&g_ep=EgoyMDI2MDExMS4wIKXMDSoKLDEwMDc5MjA3M0gBUAM%3D';
-
-const PATRIA_URL =
-  'https://www.amazon.it/-/en/Fernando-Aramburu-ebook/dp/B0731FSNPT/ref=sr_1_2?crid=M6LEAOCAJ42J&dib=eyJ2IjoiMSJ9.RMrv1_LbzYPxbY5cRTB2Qjs41BWc0NwjuD_jbNInurjjQst9EnSn3cr-Qzun2a2lJDBvSNYmYz7gJBrBRZN2yJmx62PO7yPqSVHYb0XAs1r0r4VC-7tZM9S6TPUVeBNkIUEfUAIIIVzp_s1UwC0kV8JYD9k3htvysG7770Ep3CrAsSTCs5ygiXSEnYpzjfhCAEM6GtLaU9A6yrbUM452hEwyiSW6WaXWwEoqQIf8dAmwVy3vErE5BO6GZcmX2psQtR5a5kZNvWpji3Y8iC-hrw.ke3Mdbquck5HtPcksXrpnSVwVyb1lvbnZI7fiTxT42k&dib_tag=se&keywords=patria+aramburu&qid=1778944815&sprefix=patria+ara%2Caps%2C183&sr=8-2';
 
 type Access = 'Public' | 'NDA';
 
@@ -48,13 +46,29 @@ function clampPosition(x: number, y: number): { left: number; top: number } {
   return { left, top };
 }
 
+function useHashRoute() {
+  const [hash, setHash] = useState(() =>
+    typeof window === 'undefined' ? '' : window.location.hash,
+  );
+  useEffect(() => {
+    const onChange = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', onChange);
+    return () => window.removeEventListener('hashchange', onChange);
+  }, []);
+  return hash;
+}
+
 export default function App() {
+  const hash = useHashRoute();
   return (
-    <div className={SHELL}>
-      <div className="max-w-2xl w-full">
-        <Home />
+    <>
+      <div className={SHELL}>
+        <div className="max-w-2xl w-full" data-snake-text-box>
+          <Home />
+        </div>
       </div>
-    </div>
+      {hash === '#/snake' && <SnakeGame />}
+    </>
   );
 }
 
@@ -259,11 +273,11 @@ function Home() {
           >
             sports
           </a>
-          : running, casually biking and, whenever possible, hiking. Currently reading{' '}
-          <a href={PATRIA_URL} target="_blank" rel="noopener noreferrer" className="underline">
-            Patria by Fernando Aramburu
+          : running, casually biking and, whenever possible, hiking. But I also enjoy videogames, wanna go for a little{' '}
+          <a href="#/snake" className="underline">
+            classic
           </a>
-          .
+          ?
         </p>
       </Section>
 
