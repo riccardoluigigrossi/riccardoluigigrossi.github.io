@@ -1,7 +1,4 @@
-import { useState, useEffect } from 'react';
-
-const PORTFOLIO_URL =
-  'https://drive.google.com/uc?export=download&id=1jOMPh1AWwthXtZAF8cgPIZ20xjhMkony';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const MILAN_URL =
   'https://www.google.com/maps/place/Milan,+Metropolitan+City+of+Milan/@45.4627042,9.095332,12z/data=!3m1!4b1!4m6!3m5!1s0x4786c1493f1275e7:0x3cffcd13c6740e8d!8m2!3d45.468503!4d9.1824027!16zL20vMDk0N2w?entry=ttu&g_ep=EgoyMDI2MDExMS4wIKXMDSoKLDEwMDc5MjA3M0gBUAM%3D';
@@ -14,42 +11,47 @@ const PATRIA_URL =
 
 type Access = 'Public' | 'NDA';
 
-const PROJECTS: { name: string; client: string; access: Access; slug: string }[] = [
+type Project = {
+  name: string;
+  client: string;
+  access: Access;
+  slug: string;
+  video?: string;
+};
+
+const PROJECTS: Project[] = [
   { name: 'Claims Portal', client: 'Allianz Global', access: 'NDA', slug: 'claims-portal' },
-  { name: 'Service Atlas', client: 'ABB Motion', access: 'Public', slug: 'service-atlas' },
-  { name: 'Oma', client: 'Finnish Public Healthcare', access: 'Public', slug: 'oma' },
-  { name: 'Safety Gate', client: 'European Commission', access: 'Public', slug: 'safety-gate' },
-  { name: 'EnergyLM', client: 'Aalto University', access: 'Public', slug: 'energylm' },
+  { name: 'Service Atlas', client: 'ABB Motion', access: 'Public', slug: 'service-atlas', video: 'service-atlas.mp4' },
+  { name: 'Oma', client: 'Finnish Public Healthcare', access: 'Public', slug: 'oma', video: 'oma.mp4' },
+  { name: 'Safety Gate', client: 'European Commission', access: 'Public', slug: 'safety-gate', video: 'safety-gate.mp4' },
+  { name: 'EnergyLM', client: 'Aalto University', access: 'Public', slug: 'energylm', video: 'energylm.mp4' },
 ];
 
-type Route = { kind: 'home' } | { kind: 'project'; slug: string };
-
-function parseRoute(hash: string): Route {
-  const m = hash.match(/^#\/projects\/([\w-]+)$/);
-  return m ? { kind: 'project', slug: m[1] } : { kind: 'home' };
-}
-
-function useHashRoute(): Route {
-  const [route, setRoute] = useState<Route>(() =>
-    parseRoute(typeof window === 'undefined' ? '' : window.location.hash),
-  );
-  useEffect(() => {
-    const onChange = () => setRoute(parseRoute(window.location.hash));
-    window.addEventListener('hashchange', onChange);
-    return () => window.removeEventListener('hashchange', onChange);
-  }, []);
-  return route;
-}
+const VIDEO_W = 480;
+const VIDEO_H = 287;
+const CURSOR_OFFSET = 16;
+const VIEWPORT_PAD = 8;
 
 const SHELL =
   "min-h-screen bg-white dark:bg-black text-black dark:text-white px-8 py-16 font-['Inter:Medium',sans-serif] font-medium text-[19px] tracking-[-0.311px] leading-[24.883px] flex items-center justify-center";
 
+function clampPosition(x: number, y: number): { left: number; top: number } {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  let left = x + CURSOR_OFFSET;
+  let top = y - VIDEO_H - CURSOR_OFFSET;
+  if (left + VIDEO_W > vw - VIEWPORT_PAD) left = x - VIDEO_W - CURSOR_OFFSET;
+  if (left < VIEWPORT_PAD) left = VIEWPORT_PAD;
+  if (top < VIEWPORT_PAD) top = y + CURSOR_OFFSET;
+  if (top + VIDEO_H > vh - VIEWPORT_PAD) top = vh - VIDEO_H - VIEWPORT_PAD;
+  return { left, top };
+}
+
 export default function App() {
-  const route = useHashRoute();
   return (
     <div className={SHELL}>
       <div className="max-w-2xl w-full">
-        {route.kind === 'home' ? <Home /> : <ProjectPlaceholder />}
+        <Home />
       </div>
     </div>
   );
@@ -64,6 +66,53 @@ function Home() {
   });
   const toggle = (key: keyof typeof open) =>
     setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const hoverCapable = useMemo(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+    [],
+  );
+
+  const [hovered, setHovered] = useState<{ slug: string; x: number; y: number } | null>(null);
+  const [modalSlug, setModalSlug] = useState<string | null>(null);
+
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+
+  useEffect(() => {
+    Object.entries(videoRefs.current).forEach(([slug, el]) => {
+      if (!el) return;
+      if (hovered?.slug === slug) {
+        el.play().catch(() => {});
+      } else {
+        el.pause();
+        try {
+          el.currentTime = 0;
+        } catch {
+          /* some browsers reject seek before metadata; ignore */
+        }
+      }
+    });
+  }, [hovered?.slug]);
+
+  useEffect(() => {
+    if (!modalSlug) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setModalSlug(null);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [modalSlug]);
+
+  const projectsWithVideo = PROJECTS.filter(
+    (p): p is Project & { video: string } => !!p.video,
+  );
+  const pos = hovered ? clampPosition(hovered.x, hovered.y) : null;
 
   return (
     <>
@@ -129,17 +178,47 @@ function Home() {
             <tbody>
               {PROJECTS.map((p) => {
                 const isPublic = p.access === 'Public';
+                let cell: React.ReactNode = p.name;
+                if (p.video && hoverCapable) {
+                  cell = (
+                    <span
+                      className="underline"
+                      style={{ cursor: 'default' }}
+                      aria-label={`Preview ${p.name}`}
+                      onMouseEnter={(e) =>
+                        setHovered({ slug: p.slug, x: e.clientX, y: e.clientY })
+                      }
+                      onMouseMove={(e) =>
+                        setHovered({ slug: p.slug, x: e.clientX, y: e.clientY })
+                      }
+                      onMouseLeave={() => setHovered(null)}
+                    >
+                      {p.name}
+                    </span>
+                  );
+                } else if (p.video && !hoverCapable) {
+                  cell = (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className="underline"
+                      style={{ cursor: 'pointer' }}
+                      aria-label={`Play ${p.name} preview`}
+                      onClick={() => setModalSlug(p.slug)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setModalSlug(p.slug);
+                        }
+                      }}
+                    >
+                      {p.name}
+                    </span>
+                  );
+                }
                 return (
                   <tr key={p.slug} className={isPublic ? undefined : 'row-dim'}>
-                    <td>
-                      {isPublic ? (
-                        <a href={`#/projects/${p.slug}`} className="underline">
-                          {p.name}
-                        </a>
-                      ) : (
-                        p.name
-                      )}
-                    </td>
+                    <td>{cell}</td>
                     <td>{p.client}</td>
                     <td>{p.access}</td>
                   </tr>
@@ -186,7 +265,76 @@ function Home() {
           </a>
         </p>
       </Section>
+
+      {projectsWithVideo.map((p) => {
+        const active = hoverCapable && hovered?.slug === p.slug && pos !== null;
+        return (
+          <video
+            key={p.slug}
+            ref={(el) => {
+              videoRefs.current[p.slug] = el;
+            }}
+            src={`/videos/${p.video}`}
+            muted
+            loop
+            playsInline
+            preload="auto"
+            style={{
+              position: 'fixed',
+              width: VIDEO_W,
+              height: VIDEO_H,
+              objectFit: 'cover',
+              pointerEvents: 'none',
+              zIndex: 50,
+              boxShadow: active ? '0 8px 32px rgba(0, 0, 0, 0.25)' : undefined,
+              ...(active && pos
+                ? { left: pos.left, top: pos.top, opacity: 1 }
+                : { left: -99999, top: -99999, opacity: 0 }),
+            }}
+          />
+        );
+      })}
+
+      {modalSlug && <TouchModal slug={modalSlug} onClose={() => setModalSlug(null)} />}
     </>
+  );
+}
+
+function TouchModal({ slug, onClose }: { slug: string; onClose: () => void }) {
+  const p = PROJECTS.find((x) => x.slug === slug);
+  if (!p?.video) return null;
+  return (
+    <div
+      role="button"
+      tabIndex={-1}
+      aria-label="Close preview"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.7)',
+        zIndex: 100,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+      }}
+    >
+      <video
+        src={`/videos/${p.video}`}
+        autoPlay
+        muted
+        loop
+        playsInline
+        controls
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 'min(90vw, 720px)',
+          aspectRatio: '1808 / 1080',
+          background: '#000',
+        }}
+      />
+    </div>
   );
 }
 
@@ -212,29 +360,5 @@ function Section({
       </h2>
       {isOpen && <div style={{ paddingLeft: 20 }}>{children}</div>}
     </div>
-  );
-}
-
-function ProjectPlaceholder() {
-  const goHome = (e: React.MouseEvent) => {
-    e.preventDefault();
-    window.location.hash = '';
-  };
-  return (
-    <>
-      <p className="mb-[24.883px]">Currently working on this.</p>
-      <p className="mb-[24.883px]">
-        Until the page is ready, you can download my PDF portfolio{' '}
-        <a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer" className="underline">
-          here
-        </a>
-        .
-      </p>
-      <p className="mb-0">
-        <a href="#" onClick={goHome} style={{ cursor: 'pointer' }}>
-          [Back]
-        </a>
-      </p>
-    </>
   );
 }
