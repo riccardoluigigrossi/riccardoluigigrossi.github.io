@@ -17,14 +17,15 @@ type Project = {
   access: Access;
   slug: string;
   video?: string;
+  pdf?: string;
 };
 
 const PROJECTS: Project[] = [
   { name: 'Claims Portal', client: 'Allianz Global', access: 'NDA', slug: 'claims-portal' },
-  { name: 'Service Atlas', client: 'ABB Motion', access: 'Public', slug: 'service-atlas', video: 'service-atlas.mp4' },
-  { name: 'Oma', client: 'Finnish Public Healthcare', access: 'Public', slug: 'oma', video: 'oma.mp4' },
-  { name: 'EnergyLM', client: 'Aalto University', access: 'Public', slug: 'energylm', video: 'energylm.mp4' },
-  { name: 'Safety Gate', client: 'European Commission', access: 'Public', slug: 'safety-gate', video: 'safety-gate.mp4' },
+  { name: 'Service Atlas', client: 'ABB Motion', access: 'Public', slug: 'service-atlas', video: 'service-atlas.mp4', pdf: 'ABB_Service_Atlas.pdf' },
+  { name: 'Oma', client: 'Finnish Public Healthcare', access: 'Public', slug: 'oma', video: 'oma.mp4', pdf: 'Oma_Healthcare.pdf' },
+  { name: 'EnergyLM', client: 'Aalto University', access: 'Public', slug: 'energylm', video: 'energylm.mp4', pdf: 'EnergyLM_Aalto.pdf' },
+  { name: 'Safety Gate', client: 'European Commission', access: 'Public', slug: 'safety-gate', video: 'safety-gate.mp4', pdf: 'SafetyGate_EU.pdf' },
 ];
 
 const VIDEO_W = 480;
@@ -178,9 +179,9 @@ function Home() {
             <tbody>
               {PROJECTS.map((p) => {
                 const isPublic = p.access === 'Public';
-                let cell: React.ReactNode = p.name;
+                let nameCell: React.ReactNode = p.name;
                 if (p.video && hoverCapable) {
-                  cell = (
+                  nameCell = (
                     <span
                       className="underline"
                       style={{ cursor: 'default' }}
@@ -197,7 +198,7 @@ function Home() {
                     </span>
                   );
                 } else if (p.video && !hoverCapable) {
-                  cell = (
+                  nameCell = (
                     <span
                       role="button"
                       tabIndex={0}
@@ -218,9 +219,27 @@ function Home() {
                 }
                 return (
                   <tr key={p.slug} className={isPublic ? undefined : 'row-dim'}>
-                    <td>{cell}</td>
+                    <td>{nameCell}</td>
                     <td>{p.client}</td>
                     <td>{p.access}</td>
+                    <td>
+                      {p.pdf ? (
+                        <a
+                          href={`/pdfs/${p.pdf}`}
+                          download
+                          aria-label={`Download ${p.name} PDF`}
+                          style={{
+                            textDecoration: 'none',
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                          }}
+                        >
+                          [↓]
+                        </a>
+                      ) : (
+                        <span style={{ userSelect: 'none' }}>[↓]</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
