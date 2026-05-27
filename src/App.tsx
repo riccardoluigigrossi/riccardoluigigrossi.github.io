@@ -23,8 +23,8 @@ const PROJECTS: Project[] = [
   { name: 'Claims Portal', client: 'Allianz Global', access: 'NDA', slug: 'claims-portal' },
   { name: 'Service Atlas', client: 'ABB Motion', access: 'Public', slug: 'service-atlas', video: 'service-atlas.mp4' },
   { name: 'Oma', client: 'Finnish Public Healthcare', access: 'Public', slug: 'oma', video: 'oma.mp4' },
-  { name: 'Safety Gate', client: 'European Commission', access: 'Public', slug: 'safety-gate', video: 'safety-gate.mp4' },
   { name: 'EnergyLM', client: 'Aalto University', access: 'Public', slug: 'energylm', video: 'energylm.mp4' },
+  { name: 'Safety Gate', client: 'European Commission', access: 'Public', slug: 'safety-gate', video: 'safety-gate.mp4' },
 ];
 
 const VIDEO_W = 480;
