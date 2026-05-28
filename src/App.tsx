@@ -19,7 +19,6 @@ type Project = {
 };
 
 const PROJECTS: Project[] = [
-  { name: 'Claims Portal', client: 'Allianz Global', access: 'NDA', slug: 'claims-portal' },
   { name: 'Service Atlas', client: 'ABB Motion', access: 'Public', slug: 'service-atlas', video: 'service-atlas.mp4', pdf: 'ABB_Service_Atlas.pdf' },
   { name: 'Oma', client: 'Finnish Public Healthcare', access: 'Public', slug: 'oma', video: 'oma.mp4', pdf: 'Oma_Healthcare.pdf' },
   { name: 'EnergyLM', client: 'Aalto University', access: 'Public', slug: 'energylm', video: 'energylm.mp4', pdf: 'EnergyLM_Aalto.pdf' },
@@ -235,7 +234,6 @@ function Home() {
                   <tr key={p.slug} className={isPublic ? undefined : 'row-dim'}>
                     <td>{nameCell}</td>
                     <td>{p.client}</td>
-                    <td>{p.access}</td>
                     <td>
                       {p.pdf ? (
                         <a
@@ -248,15 +246,20 @@ function Home() {
                             userSelect: 'none',
                           }}
                         >
-                          [↓]
+                          [PDF]
                         </a>
                       ) : (
-                        <span style={{ userSelect: 'none' }}>[↓]</span>
+                        <span style={{ userSelect: 'none' }}>[PDF]</span>
                       )}
                     </td>
                   </tr>
                 );
               })}
+              <tr className="row-dim">
+                <td colSpan={3} style={{ paddingTop: 24 }}>
+                  *additional work is under NDA and will appear here once shareable :)
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
