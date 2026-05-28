@@ -257,7 +257,7 @@ function Home() {
               })}
               <tr className="row-dim">
                 <td colSpan={3} style={{ paddingTop: 24 }}>
-                  *additional work is under NDA and will appear here once shareable :)
+                  *additional work is under NDA and will appear here once shareable
                 </td>
               </tr>
             </tbody>
