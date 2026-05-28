@@ -29,6 +29,10 @@ const KEY_DIR: Record<string, Dir> = {
   s: 'down',
   a: 'left',
   d: 'right',
+  arrowup: 'up',
+  arrowdown: 'down',
+  arrowleft: 'left',
+  arrowright: 'right',
 };
 
 function isOpposite(a: Dir, b: Dir) {
@@ -123,7 +127,7 @@ type State = {
   food: Cell;
   dead: boolean;
   score: number;
-  hasMoved: boolean;
+  started: boolean;
 };
 
 function initialState(dims: Dims, forbidden: Rect[]): State {
@@ -141,12 +145,12 @@ function initialState(dims: Dims, forbidden: Rect[]): State {
     food: spawnFood(snake, dims, forbidden),
     dead: false,
     score: 0,
-    hasMoved: false,
+    started: false,
   };
 }
 
 function step(s: State, dims: Dims, forbidden: Rect[]): State {
-  if (s.dead) return s;
+  if (s.dead || !s.started) return s;
   let dir = s.dir;
   if (s.pendingDir && !isOpposite(s.pendingDir, s.dir)) dir = s.pendingDir;
   const head = s.snake[0];
@@ -168,7 +172,7 @@ function step(s: State, dims: Dims, forbidden: Rect[]): State {
     food: eating ? spawnFood(newSnake, dims, forbidden) : s.food,
     dead: false,
     score: eating ? s.score + 1 : s.score,
-    hasMoved: s.hasMoved,
+    started: true,
   };
 }
 
@@ -205,10 +209,13 @@ export default function SnakeGame() {
       start = null;
       const absX = Math.abs(dx);
       const absY = Math.abs(dy);
-      if (Math.max(absX, absY) < SWIPE_THRESHOLD) return;
+      if (Math.max(absX, absY) < SWIPE_THRESHOLD) {
+        setState((s) => (!s.started && !s.dead ? { ...s, started: true } : s));
+        return;
+      }
       const dir: Dir =
         absX > absY ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
-      setState((s) => ({ ...s, pendingDir: dir, hasMoved: true }));
+      setState((s) => ({ ...s, pendingDir: dir, started: true }));
     };
     window.addEventListener('touchstart', onTouchStart, { passive: true });
     window.addEventListener('touchend', onTouchEnd, { passive: true });
@@ -269,15 +276,19 @@ export default function SnakeGame() {
       }
       if (k === 'r') {
         setState((s) =>
-          s.dead ? initialState(dimsRef.current, forbiddenRef.current) : s,
+          s.dead
+            ? { ...initialState(dimsRef.current, forbiddenRef.current), started: true }
+            : s,
         );
         return;
       }
       const dir = KEY_DIR[k];
       if (dir) {
         e.preventDefault();
-        setState((s) => ({ ...s, pendingDir: dir, hasMoved: true }));
+        setState((s) => ({ ...s, pendingDir: dir, started: true }));
+        return;
       }
+      setState((s) => (!s.started && !s.dead ? { ...s, started: true } : s));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -330,11 +341,7 @@ export default function SnakeGame() {
           fontSize: 19,
         }}
       >
-        {state.hasMoved
-          ? `Score: ${state.score}`
-          : hoverCapable
-            ? 'Control with WASD'
-            : 'Swipe to control'}
+        {`Score: ${state.score}`}
       </div>
 
       <div
@@ -351,41 +358,81 @@ export default function SnakeGame() {
         </a>
       </div>
 
-      {state.dead && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            pointerEvents: 'auto',
-          }}
-        >
-          <div
-            className="bg-white dark:bg-black"
-            onClick={() =>
-              setState((s) =>
-                s.dead ? initialState(dimsRef.current, forbiddenRef.current) : s,
-              )
-            }
-            style={{
-              textAlign: 'center',
-              padding: '24px 32px',
-              border: '1px solid currentColor',
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{ fontSize: 32, marginBottom: 12 }}>Game Over</div>
-            <div style={{ fontSize: 19, marginBottom: 24 }}>
-              Score: {state.score}
-            </div>
-            <div style={{ fontSize: 19 }}>
-              {hoverCapable ? 'Press R to restart' : 'Tap to restart'}
-            </div>
-          </div>
-        </div>
+      {!state.started && !state.dead && (
+        <OverlayBox
+          lines={[
+            'Snake',
+            hoverCapable ? 'Control with WASD or arrow keys' : 'Swipe to control',
+            hoverCapable ? 'Press any key to start' : 'Tap to start',
+          ]}
+          onClick={() =>
+            setState((s) => (!s.started && !s.dead ? { ...s, started: true } : s))
+          }
+        />
       )}
+
+      {state.dead && (
+        <OverlayBox
+          lines={[
+            'Game Over',
+            `Score: ${state.score}`,
+            hoverCapable ? 'Press R to restart' : 'Tap to restart',
+          ]}
+          onClick={() =>
+            setState((s) =>
+              s.dead
+                ? { ...initialState(dimsRef.current, forbiddenRef.current), started: true }
+                : s,
+            )
+          }
+        />
+      )}
+    </div>
+  );
+}
+
+function OverlayBox({
+  lines,
+  onClick,
+}: {
+  lines: string[];
+  onClick: () => void;
+}) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        pointerEvents: 'auto',
+      }}
+    >
+      <div
+        className="bg-white dark:bg-black"
+        onClick={onClick}
+        style={{
+          textAlign: 'left',
+          padding: '24px 32px',
+          border: '1px solid currentColor',
+          cursor: 'pointer',
+          fontFamily: FONT_FAMILY,
+          fontWeight: 500,
+          fontSize: 19,
+          letterSpacing: '-0.311px',
+          lineHeight: '24.883px',
+        }}
+      >
+        {lines.map((line, i) => (
+          <div
+            key={i}
+            style={{ marginBottom: i === lines.length - 1 ? 0 : 24.883 }}
+          >
+            {line}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
