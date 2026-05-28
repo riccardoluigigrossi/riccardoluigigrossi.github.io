@@ -7,6 +7,16 @@ const FOOD_CHAR = '@';
 const FONT_FAMILY = "'Inter:Medium', sans-serif";
 const SWIPE_THRESHOLD = 24;
 
+const SNAKE_ASCII = ` _____ _____ _____ _____ _____
+|   __|   | |  _  |  |  |   __|
+|__   | | | |     |    -|   __|
+|_____|_|___|__|__|__|__|_____|`;
+
+const GAME_OVER_ASCII = ` _____ _____ _____ _____    _____ _____ _____ _____
+|   __|  _  |     |   __|  |     |  |  |   __| __  |
+|  |  |     | | | |   __|  |  |  |  |  |   __|    -|
+|_____|__|__|_|_|_|_____|  |_____|\\___/|_____|__|__|`;
+
 function isHoverCapable(): boolean {
   if (typeof window === 'undefined') return true;
   return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
@@ -360,8 +370,8 @@ export default function SnakeGame() {
 
       {!state.started && !state.dead && (
         <OverlayBox
+          asciiTitle={SNAKE_ASCII}
           lines={[
-            'Snake',
             hoverCapable ? 'Control with WASD or arrow keys' : 'Swipe to control',
             hoverCapable ? 'Press any key to start' : 'Tap to start',
           ]}
@@ -373,8 +383,8 @@ export default function SnakeGame() {
 
       {state.dead && (
         <OverlayBox
+          asciiTitle={GAME_OVER_ASCII}
           lines={[
-            'Game Over',
             `Score: ${state.score}`,
             hoverCapable ? 'Press R to restart' : 'Tap to restart',
           ]}
@@ -392,14 +402,19 @@ export default function SnakeGame() {
 }
 
 function OverlayBox({
+  asciiTitle,
   lines,
   onClick,
 }: {
+  asciiTitle?: string;
   lines: string[];
   onClick: () => void;
 }) {
   return (
     <div
+      onClick={() => {
+        window.location.hash = '';
+      }}
       style={{
         position: 'absolute',
         inset: 0,
@@ -411,9 +426,12 @@ function OverlayBox({
     >
       <div
         className="bg-white dark:bg-black"
-        onClick={onClick}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
         style={{
-          textAlign: 'left',
+          textAlign: 'center',
           padding: '24px 32px',
           border: '1px solid currentColor',
           cursor: 'pointer',
@@ -424,14 +442,36 @@ function OverlayBox({
           lineHeight: '24.883px',
         }}
       >
-        {lines.map((line, i) => (
-          <div
-            key={i}
-            style={{ marginBottom: i === lines.length - 1 ? 0 : 24.883 }}
+        {asciiTitle && (
+          <pre
+            style={{
+              fontFamily:
+                "Menlo, Monaco, 'Courier New', ui-monospace, monospace",
+              fontSize: 16,
+              lineHeight: 1.25,
+              letterSpacing: '-0.5px',
+              margin: 0,
+              marginBottom: 24.883,
+              whiteSpace: 'pre',
+              display: 'inline-block',
+              textAlign: 'left',
+            }}
           >
-            {line}
-          </div>
-        ))}
+            {asciiTitle}
+          </pre>
+        )}
+        {lines.map((line, i) => {
+          const isLast = i === lines.length - 1;
+          return (
+            <div
+              key={i}
+              className={asciiTitle && isLast ? 'snake-blink' : undefined}
+              style={{ marginBottom: isLast ? 0 : 24.883 }}
+            >
+              {line}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

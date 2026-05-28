@@ -539,6 +539,15 @@ html {
   opacity: 0.5;
 }
 
+@keyframes snake-blink {
+  0%, 49.99% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.snake-blink {
+  animation: snake-blink 1s step-end infinite;
+}
+
 @media (max-width: 599px) {
   .projects-wrap {
     overflow-x: auto;
