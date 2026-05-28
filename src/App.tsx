@@ -45,6 +45,27 @@ function clampPosition(x: number, y: number): { left: number; top: number } {
   return { left, top };
 }
 
+function touchVideoSize(): { w: number; h: number } {
+  const w = Math.min(VIDEO_W, window.innerWidth - VIEWPORT_PAD * 2);
+  return { w, h: Math.round((w * VIDEO_H) / VIDEO_W) };
+}
+
+function clampPositionAboveRow(
+  rowRect: DOMRect,
+  w: number,
+  h: number,
+): { left: number; top: number } {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  let left = rowRect.left + rowRect.width / 2 - w / 2;
+  let top = rowRect.top - h - 8;
+  if (left < VIEWPORT_PAD) left = VIEWPORT_PAD;
+  if (left + w > vw - VIEWPORT_PAD) left = vw - w - VIEWPORT_PAD;
+  if (top < VIEWPORT_PAD) top = rowRect.bottom + 8;
+  if (top + h > vh - VIEWPORT_PAD) top = vh - h - VIEWPORT_PAD;
+  return { left, top };
+}
+
 function useHashRoute() {
   const [hash, setHash] = useState(() =>
     typeof window === 'undefined' ? '' : window.location.hash,
@@ -89,14 +110,22 @@ function Home() {
   );
 
   const [hovered, setHovered] = useState<{ slug: string; x: number; y: number } | null>(null);
-  const [modalSlug, setModalSlug] = useState<string | null>(null);
+  const [pressing, setPressing] = useState<{ slug: string; rowRect: DOMRect } | null>(null);
+  const [recentRelease, setRecentRelease] = useState<{ slug: string; until: number } | null>(
+    null,
+  );
+  const [learned, setLearned] = useState(false);
 
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const learnTimerRef = useRef<number | null>(null);
+  const releaseTimerRef = useRef<number | null>(null);
+
+  const activeSlug = hovered?.slug ?? pressing?.slug ?? null;
 
   useEffect(() => {
     Object.entries(videoRefs.current).forEach(([slug, el]) => {
       if (!el) return;
-      if (hovered?.slug === slug) {
+      if (activeSlug === slug) {
         el.play().catch(() => {});
       } else {
         el.pause();
@@ -107,26 +136,46 @@ function Home() {
         }
       }
     });
-  }, [hovered?.slug]);
+  }, [activeSlug]);
 
   useEffect(() => {
-    if (!modalSlug) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setModalSlug(null);
-    };
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', onKey);
     return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener('keydown', onKey);
+      if (learnTimerRef.current !== null) window.clearTimeout(learnTimerRef.current);
+      if (releaseTimerRef.current !== null) window.clearTimeout(releaseTimerRef.current);
     };
-  }, [modalSlug]);
+  }, []);
+
+  const startPress = (slug: string, rowRect: DOMRect) => {
+    setPressing({ slug, rowRect });
+    if (learnTimerRef.current !== null) window.clearTimeout(learnTimerRef.current);
+    if (!learned) {
+      learnTimerRef.current = window.setTimeout(() => setLearned(true), 3500);
+    }
+  };
+
+  const endPress = (slug: string) => {
+    if (learnTimerRef.current !== null) {
+      window.clearTimeout(learnTimerRef.current);
+      learnTimerRef.current = null;
+    }
+    setPressing(null);
+    if (!learned) {
+      const until = Date.now() + 3000;
+      setRecentRelease({ slug, until });
+      if (releaseTimerRef.current !== null) window.clearTimeout(releaseTimerRef.current);
+      releaseTimerRef.current = window.setTimeout(() => setRecentRelease(null), 3000);
+    }
+  };
 
   const projectsWithVideo = PROJECTS.filter(
     (p): p is Project & { video: string } => !!p.video,
   );
   const pos = hovered ? clampPosition(hovered.x, hovered.y) : null;
+  const touchSize = pressing ? touchVideoSize() : null;
+  const touchPos =
+    pressing && touchSize
+      ? clampPositionAboveRow(pressing.rowRect, touchSize.w, touchSize.h)
+      : null;
 
   return (
     <>
@@ -211,22 +260,31 @@ function Home() {
                     </span>
                   );
                 } else if (p.video && !hoverCapable) {
+                  const showHint =
+                    !learned &&
+                    (pressing?.slug === p.slug || recentRelease?.slug === p.slug);
                   nameCell = (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className="underline"
-                      style={{ cursor: 'pointer' }}
-                      aria-label={`Play ${p.name} preview`}
-                      onClick={() => setModalSlug(p.slug)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setModalSlug(p.slug);
-                        }
-                      }}
-                    >
-                      {p.name}
+                    <span className="name-cell">
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className={`name-touch underline${showHint ? ' snake-blink' : ''}`}
+                        aria-label={`Hold to preview ${p.name}`}
+                        onTouchStart={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          startPress(p.slug, rect);
+                        }}
+                        onTouchEnd={() => endPress(p.slug)}
+                        onTouchCancel={() => endPress(p.slug)}
+                        onContextMenu={(e) => e.preventDefault()}
+                      >
+                        {p.name}
+                      </span>
+                      {showHint && (
+                        <span className="name-hint snake-blink-inverse" aria-hidden="true">
+                          hold to watch
+                        </span>
+                      )}
                     </span>
                   );
                 }
@@ -303,7 +361,17 @@ function Home() {
       </Section>
 
       {projectsWithVideo.map((p) => {
-        const active = hoverCapable && hovered?.slug === p.slug && pos !== null;
+        const hoverActive = hoverCapable && hovered?.slug === p.slug && pos !== null;
+        const touchActive =
+          !hoverCapable && pressing?.slug === p.slug && touchPos !== null && touchSize !== null;
+        const active = hoverActive || touchActive;
+        const width = touchActive ? touchSize!.w : VIDEO_W;
+        const height = touchActive ? touchSize!.h : VIDEO_H;
+        const placement = hoverActive
+          ? { left: pos!.left, top: pos!.top, opacity: 1 }
+          : touchActive
+          ? { left: touchPos!.left, top: touchPos!.top, opacity: 1 }
+          : { left: -99999, top: -99999, opacity: 0 };
         return (
           <video
             key={p.slug}
@@ -317,60 +385,18 @@ function Home() {
             preload="auto"
             style={{
               position: 'fixed',
-              width: VIDEO_W,
-              height: VIDEO_H,
+              width,
+              height,
               objectFit: 'cover',
               pointerEvents: 'none',
               zIndex: 50,
               boxShadow: active ? '0 8px 32px rgba(0, 0, 0, 0.25)' : undefined,
-              ...(active && pos
-                ? { left: pos.left, top: pos.top, opacity: 1 }
-                : { left: -99999, top: -99999, opacity: 0 }),
+              ...placement,
             }}
           />
         );
       })}
-
-      {modalSlug && <TouchModal slug={modalSlug} onClose={() => setModalSlug(null)} />}
     </>
-  );
-}
-
-function TouchModal({ slug, onClose }: { slug: string; onClose: () => void }) {
-  const p = PROJECTS.find((x) => x.slug === slug);
-  if (!p?.video) return null;
-  return (
-    <div
-      role="button"
-      tabIndex={-1}
-      aria-label="Close preview"
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0, 0, 0, 0.7)',
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-      }}
-    >
-      <video
-        src={`/videos/${p.video}`}
-        autoPlay
-        muted
-        loop
-        playsInline
-        controls
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 'min(90vw, 720px)',
-          aspectRatio: '1808 / 1080',
-          background: '#000',
-        }}
-      />
-    </div>
   );
 }
 

@@ -548,6 +548,36 @@ html {
   animation: snake-blink 1s step-end infinite;
 }
 
+@keyframes snake-blink-inverse {
+  0%, 49.99% { opacity: 0; }
+  50%, 100% { opacity: 1; }
+}
+
+.snake-blink-inverse {
+  animation: snake-blink-inverse 1s step-end infinite;
+}
+
+.name-cell {
+  position: relative;
+  display: inline-block;
+}
+
+.name-hint {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.name-touch {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
 @media (max-width: 599px) {
   .projects-wrap {
     overflow-x: auto;
