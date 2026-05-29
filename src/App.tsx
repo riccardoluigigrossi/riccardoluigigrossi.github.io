@@ -115,10 +115,12 @@ function Home() {
     null,
   );
   const [learned, setLearned] = useState(false);
+  const [classicWave, setClassicWave] = useState(0);
 
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const learnTimerRef = useRef<number | null>(null);
   const releaseTimerRef = useRef<number | null>(null);
+  const classicWaveTimersRef = useRef<number[]>([]);
 
   const activeSlug = hovered?.slug ?? pressing?.slug ?? null;
 
@@ -144,6 +146,22 @@ function Home() {
       if (releaseTimerRef.current !== null) window.clearTimeout(releaseTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    classicWaveTimersRef.current.forEach((id) => window.clearTimeout(id));
+    classicWaveTimersRef.current = [];
+    if (!open.interests) {
+      setClassicWave(0);
+      return;
+    }
+    const t1 = window.setTimeout(() => setClassicWave(1), 3000);
+    const t2 = window.setTimeout(() => setClassicWave(2), 6000);
+    classicWaveTimersRef.current = [t1, t2];
+    return () => {
+      classicWaveTimersRef.current.forEach((id) => window.clearTimeout(id));
+      classicWaveTimersRef.current = [];
+    };
+  }, [open.interests]);
 
   const startPress = (slug: string, rowRect: DOMRect) => {
     setPressing({ slug, rowRect });
@@ -335,8 +353,20 @@ function Home() {
             sports
           </a>
           : running, casually biking and, whenever possible, hiking. But I also enjoy videogames, wanna go for a little{' '}
-          <a href="#/snake" className="underline">
-            classic
+          <a
+            key={classicWave}
+            href="#/snake"
+            className={`classic-link${classicWave > 0 ? ' classic-waving' : ''}`}
+          >
+            {Array.from('classic').map((ch, i) => (
+              <span
+                key={i}
+                className="classic-letter"
+                style={{ animationDelay: `${i * 100}ms` }}
+              >
+                {ch}
+              </span>
+            ))}
           </a>
           ?
         </p>

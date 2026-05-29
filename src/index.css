@@ -494,6 +494,34 @@
   cursor: pointer;
 }
 
+.classic-link {
+  text-decoration: underline;
+}
+
+.classic-letter {
+  position: relative;
+  will-change: top;
+}
+
+.classic-waving .classic-letter {
+  animation: classic-wave 500ms step-end 1;
+}
+
+@keyframes classic-wave {
+  0%   { top: 0; }      /* rest */
+  20%  { top: -3px; }   /* mid-air */
+  40%  { top: -7px; }   /* up */
+  60%  { top: -3px; }   /* mid-air */
+  80%  { top: 0; }      /* rest */
+  100% { top: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .classic-waving .classic-letter {
+    animation: none;
+  }
+}
+
 @media (max-width: 599px) {
   .projects-wrap {
     overflow-x: auto;
