@@ -151,9 +151,14 @@
     </script>
 
     <script>
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.classList.add('dark');
-      }
+      (function () {
+        var mq = window.matchMedia('(prefers-color-scheme: dark)');
+        var apply = function (matches) {
+          document.documentElement.classList.toggle('dark', matches);
+        };
+        apply(mq.matches);
+        mq.addEventListener('change', function (e) { apply(e.matches); });
+      })();
     </script>
   </head>
   <body>
