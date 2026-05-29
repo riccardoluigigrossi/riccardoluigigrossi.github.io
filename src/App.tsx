@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import SnakeGame from './SnakeGame';
+import GravityDestroy from './GravityDestroy';
 
 const MILAN_URL =
   'https://www.google.com/maps/place/Milan,+Metropolitan+City+of+Milan/@45.4627042,9.095332,12z/data=!3m1!4b1!4m6!3m5!1s0x4786c1493f1275e7:0x3cffcd13c6740e8d!8m2!3d45.468503!4d9.1824027!16zL20vMDk0N2w?entry=ttu&g_ep=EgoyMDI2MDExMS4wIKXMDSoKLDEwMDc5MjA3M0gBUAM%3D';
@@ -116,11 +117,14 @@ function Home() {
   );
   const [learned, setLearned] = useState(false);
   const [classicWave, setClassicWave] = useState(0);
+  const [destroy, setDestroy] = useState<'idle' | 'replied' | 'falling'>('idle');
+  const [epicenter, setEpicenter] = useState<{ x: number; y: number } | null>(null);
 
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const learnTimerRef = useRef<number | null>(null);
   const releaseTimerRef = useRef<number | null>(null);
   const classicWaveTimersRef = useRef<number[]>([]);
+  const destroyTimerRef = useRef<number | null>(null);
 
   const activeSlug = hovered?.slug ?? pressing?.slug ?? null;
 
@@ -144,8 +148,17 @@ function Home() {
     return () => {
       if (learnTimerRef.current !== null) window.clearTimeout(learnTimerRef.current);
       if (releaseTimerRef.current !== null) window.clearTimeout(releaseTimerRef.current);
+      if (destroyTimerRef.current !== null) window.clearTimeout(destroyTimerRef.current);
     };
   }, []);
+
+  const handleReject = (e: React.MouseEvent<HTMLSpanElement> | React.KeyboardEvent<HTMLSpanElement>) => {
+    if (destroy !== 'idle') return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setEpicenter({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    setDestroy('replied');
+    destroyTimerRef.current = window.setTimeout(() => setDestroy('falling'), 1200);
+  };
 
   useEffect(() => {
     classicWaveTimersRef.current.forEach((id) => window.clearTimeout(id));
@@ -155,8 +168,7 @@ function Home() {
       return;
     }
     const t1 = window.setTimeout(() => setClassicWave(1), 3000);
-    const t2 = window.setTimeout(() => setClassicWave(2), 6000);
-    classicWaveTimersRef.current = [t1, t2];
+    classicWaveTimersRef.current = [t1];
     return () => {
       classicWaveTimersRef.current.forEach((id) => window.clearTimeout(id));
       classicWaveTimersRef.current = [];
@@ -362,7 +374,7 @@ function Home() {
               <span
                 key={i}
                 className="classic-letter"
-                style={{ animationDelay: `${i * 100}ms` }}
+                style={{ animationDelay: `${i * 150}ms` }}
               >
                 {ch}
               </span>
@@ -378,7 +390,7 @@ function Home() {
             Email
           </a>
         </p>
-        <p className="mb-0">
+        <p className="mb-[24.883px]">
           <a
             href="https://www.linkedin.com/in/riccardo-luigi-grossi-ba3238206/"
             target="_blank"
@@ -387,6 +399,23 @@ function Home() {
           >
             LinkedIn
           </a>
+        </p>
+        <p className="mb-0">
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={handleReject}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleReject(e);
+              }
+            }}
+            style={{ cursor: 'pointer', userSelect: 'none' }}
+            className="underline"
+          >
+            {destroy === 'idle' ? "I don't want to contact you" : "Hope you didn't read any of this"}
+          </span>
         </p>
       </Section>
 
@@ -426,6 +455,7 @@ function Home() {
           />
         );
       })}
+      {destroy === 'falling' && <GravityDestroy epicenter={epicenter} />}
     </>
   );
 }
