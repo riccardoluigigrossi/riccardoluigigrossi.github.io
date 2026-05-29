@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import SnakeGame from './SnakeGame';
-import GravityDestroy from './GravityDestroy';
+import SnakeDestroy from './SnakeDestroy';
 
 const MILAN_URL =
   'https://www.google.com/maps/place/Milan,+Metropolitan+City+of+Milan/@45.4627042,9.095332,12z/data=!3m1!4b1!4m6!3m5!1s0x4786c1493f1275e7:0x3cffcd13c6740e8d!8m2!3d45.468503!4d9.1824027!16zL20vMDk0N2w?entry=ttu&g_ep=EgoyMDI2MDExMS4wIKXMDSoKLDEwMDc5MjA3M0gBUAM%3D';
@@ -117,14 +117,13 @@ function Home() {
   );
   const [learned, setLearned] = useState(false);
   const [classicWave, setClassicWave] = useState(0);
-  const [destroy, setDestroy] = useState<'idle' | 'replied' | 'falling'>('idle');
+  const [destroy, setDestroy] = useState<'idle' | 'falling'>('idle');
   const [epicenter, setEpicenter] = useState<{ x: number; y: number } | null>(null);
 
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const learnTimerRef = useRef<number | null>(null);
   const releaseTimerRef = useRef<number | null>(null);
   const classicWaveTimersRef = useRef<number[]>([]);
-  const destroyTimerRef = useRef<number | null>(null);
 
   const activeSlug = hovered?.slug ?? pressing?.slug ?? null;
 
@@ -148,7 +147,6 @@ function Home() {
     return () => {
       if (learnTimerRef.current !== null) window.clearTimeout(learnTimerRef.current);
       if (releaseTimerRef.current !== null) window.clearTimeout(releaseTimerRef.current);
-      if (destroyTimerRef.current !== null) window.clearTimeout(destroyTimerRef.current);
     };
   }, []);
 
@@ -156,8 +154,7 @@ function Home() {
     if (destroy !== 'idle') return;
     const rect = e.currentTarget.getBoundingClientRect();
     setEpicenter({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-    setDestroy('replied');
-    destroyTimerRef.current = window.setTimeout(() => setDestroy('falling'), 1200);
+    setDestroy('falling');
   };
 
   useEffect(() => {
@@ -412,9 +409,9 @@ function Home() {
               }
             }}
             style={{ cursor: 'pointer', userSelect: 'none' }}
-            className="underline"
+            className={destroy === 'idle' ? 'underline' : undefined}
           >
-            {destroy === 'idle' ? "I don't want to contact you" : "Hope you didn't read any of this"}
+            {destroy === 'idle' ? "I don't want to contact you" : 'Cleaning up after myself...'}
           </span>
         </p>
       </Section>
@@ -455,7 +452,7 @@ function Home() {
           />
         );
       })}
-      {destroy === 'falling' && <GravityDestroy epicenter={epicenter} />}
+      {destroy === 'falling' && <SnakeDestroy epicenter={epicenter} />}
     </>
   );
 }
