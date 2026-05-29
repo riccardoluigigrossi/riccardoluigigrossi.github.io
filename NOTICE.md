@@ -1,21 +1,27 @@
-# Notice
+# Hey there 👋
 
-The MIT License in [`LICENSE`](./LICENSE) applies **only to the source code** in this repository — for example, the React components, TypeScript, build configuration, and similar implementation files.
+Thanks for poking around the source — I genuinely love that you're curious.
 
-## All rights reserved
+Here's the deal in plain English:
 
-The following are **not** covered by the MIT License and are © 2026 Riccardo Luigi Grossi. All rights reserved:
+## The code is yours to learn from
 
-- The **visual design**, layout, and overall look-and-feel of the site
-- The **written content** (bio, project descriptions, copy)
+The [`LICENSE`](./LICENSE) (MIT) covers the **source code**: React components, TypeScript, build config, all that stuff. Borrow it, fork it, ship it in your own thing — just keep the copyright notice. If something here helps you build your own site, that makes me happy.
+
+## The design and content, less so
+
+The stuff that makes this portfolio *mine* — © 2026 Riccardo Luigi Grossi — isn't part of that open invitation:
+
+- The **visual design**, layout, and overall look-and-feel
+- The **written content** (bio, project write-ups, copy)
 - **Images, screenshots, and videos** of my projects and interfaces
-- **Logos, illustrations, and other original artwork**
-- The compiled portfolio as a whole (the curation and arrangement of the above)
+- **Logos, illustrations, and original artwork**
+- The portfolio as a whole — how it's all put together
 
-These may not be copied, redistributed, mirrored, reposted, or reused — in whole or in part, modified or unmodified, for commercial or non-commercial purposes — without my prior written permission.
+Please don't copy these wholesale, mirror the site, or republish my project work as your own. Drawing inspiration is great; lifting is not. 🙏
 
-You are welcome to read the code, learn from it, and reuse the implementation under MIT. You are **not** welcome to clone the site's design or republish its content as your own work.
+## Want to use something?
 
-## Permission requests
+If you'd like to feature, reuse, or license any of the design or content, just ask — I'm friendlier than this file makes me sound.
 
-For licensing the design or any content, contact: riccardoluigigrossi@gmail.com
+📬 **riccardoluigigrossi@gmail.com**
