@@ -499,21 +499,16 @@
 }
 
 .classic-letter {
-  position: relative;
-  will-change: top;
+  will-change: opacity;
 }
 
 .classic-waving .classic-letter {
-  animation: classic-wave 500ms step-end 1;
+  animation: classic-wave 300ms ease-in-out 1 both;
 }
 
 @keyframes classic-wave {
-  0%   { top: 0; }      /* rest */
-  20%  { top: -3px; }   /* mid-air */
-  40%  { top: -7px; }   /* up */
-  60%  { top: -3px; }   /* mid-air */
-  80%  { top: 0; }      /* rest */
-  100% { top: 0; }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
