@@ -202,10 +202,19 @@ function Home() {
     setActiveCity((prev) => (prev === city ? null : prev));
   };
 
-  const handleReject = (e: React.MouseEvent<HTMLSpanElement> | React.KeyboardEvent<HTMLSpanElement>) => {
+  const handleReject = (e: React.MouseEvent<HTMLElement> | React.KeyboardEvent<HTMLElement>) => {
     if (destroy !== 'idle') return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    setEpicenter({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    let x: number;
+    let y: number;
+    if ('clientX' in e) {
+      x = e.clientX;
+      y = e.clientY;
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      x = rect.left + rect.width / 2;
+      y = rect.top + rect.height / 2;
+    }
+    setEpicenter({ x, y });
     setDestroy('falling');
   };
 
@@ -258,7 +267,20 @@ function Home() {
 
   return (
     <>
-      <h1 className="mb-0">Riccardo L. Grossi</h1>
+      <h1
+        className="mb-0"
+        style={{ cursor: 'pointer' }}
+        tabIndex={0}
+        onClick={handleReject}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleReject(e);
+          }
+        }}
+      >
+        Riccardo L. Grossi
+      </h1>
       <h2 className="mb-[24.883px]">Digital Product and Service Designer</h2>
 
       <Section title="About" isOpen={open.about} onToggle={() => toggle('about')}>
@@ -453,7 +475,7 @@ function Home() {
             Email
           </a>
         </p>
-        <p className="mb-[24.883px]">
+        <p className="mb-0">
           <a
             href="https://www.linkedin.com/in/riccardo-luigi-grossi-ba3238206/"
             target="_blank"
@@ -462,23 +484,6 @@ function Home() {
           >
             LinkedIn
           </a>
-        </p>
-        <p className="mb-0">
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={handleReject}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleReject(e);
-              }
-            }}
-            style={{ cursor: 'pointer', userSelect: 'none' }}
-            className={destroy === 'idle' ? 'underline' : undefined}
-          >
-            {destroy === 'idle' ? "Leave no trace" : ''}
-          </span>
         </p>
       </Section>
 
