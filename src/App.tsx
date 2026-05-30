@@ -2,12 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import SnakeGame from './SnakeGame';
 import SnakeDestroy from './SnakeDestroy';
 
-const MILAN_URL =
-  'https://www.google.com/maps/place/Milan,+Metropolitan+City+of+Milan/@45.4627042,9.095332,12z/data=!3m1!4b1!4m6!3m5!1s0x4786c1493f1275e7:0x3cffcd13c6740e8d!8m2!3d45.468503!4d9.1824027!16zL20vMDk0N2w?entry=ttu&g_ep=EgoyMDI2MDExMS4wIKXMDSoKLDEwMDc5MjA3M0gBUAM%3D';
-
-const HELSINKI_URL =
-  'https://www.google.com/maps/place/Helsinki,+Finland/@60.1097542,24.689061,10z/data=!3m1!4b1!4m6!3m5!1s0x46920bc796210691:0xcd4ebd843be2f763!8m2!3d60.1698557!4d24.9383791!16zL20vMDNraG4?entry=ttu&g_ep=EgoyMDI2MDExMS4wIKXMDSoKLDEwMDc5MjA3M0gBUAM%3D';
-
 type Access = 'Public' | 'NDA';
 
 type Project = {
@@ -120,10 +114,18 @@ function Home() {
   const [destroy, setDestroy] = useState<'idle' | 'falling'>('idle');
   const [epicenter, setEpicenter] = useState<{ x: number; y: number } | null>(null);
 
+  const [activeCity, setActiveCity] = useState<'milan' | 'helsinki' | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [temps, setTemps] = useState<{ milan: number | null; helsinki: number | null }>({
+    milan: null,
+    helsinki: null,
+  });
+
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const learnTimerRef = useRef<number | null>(null);
   const releaseTimerRef = useRef<number | null>(null);
   const classicWaveTimersRef = useRef<number[]>([]);
+  const cityTimerRef = useRef<number | null>(null);
 
   const activeSlug = hovered?.slug ?? pressing?.slug ?? null;
 
@@ -147,8 +149,58 @@ function Home() {
     return () => {
       if (learnTimerRef.current !== null) window.clearTimeout(learnTimerRef.current);
       if (releaseTimerRef.current !== null) window.clearTimeout(releaseTimerRef.current);
+      if (cityTimerRef.current !== null) window.clearTimeout(cityTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!activeCity) return;
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [activeCity]);
+
+  useEffect(() => {
+    let canceled = false;
+    const fetchTemp = async (lat: number, lon: number): Promise<number | null> => {
+      try {
+        const res = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`,
+        );
+        if (!res.ok) return null;
+        const json = await res.json();
+        const t = json?.current?.temperature_2m;
+        return typeof t === 'number' ? Math.round(t) : null;
+      } catch {
+        return null;
+      }
+    };
+    Promise.allSettled([fetchTemp(45.4642, 9.19), fetchTemp(60.1699, 24.9384)]).then(
+      ([m, h]) => {
+        if (canceled) return;
+        setTemps({
+          milan: m.status === 'fulfilled' ? m.value : null,
+          helsinki: h.status === 'fulfilled' ? h.value : null,
+        });
+      },
+    );
+    return () => {
+      canceled = true;
+    };
+  }, []);
+
+  const activateCity = (city: 'milan' | 'helsinki') => {
+    setActiveCity(city);
+    if (cityTimerRef.current !== null) window.clearTimeout(cityTimerRef.current);
+    if (!hoverCapable) {
+      cityTimerRef.current = window.setTimeout(() => setActiveCity(null), 3000);
+    }
+  };
+
+  const deactivateCity = (city: 'milan' | 'helsinki') => {
+    if (!hoverCapable) return;
+    setActiveCity((prev) => (prev === city ? null : prev));
+  };
 
   const handleReject = (e: React.MouseEvent<HTMLSpanElement> | React.KeyboardEvent<HTMLSpanElement>) => {
     if (destroy !== 'idle') return;
@@ -251,13 +303,27 @@ function Home() {
         </p>
         <p className="mb-0">
           Right now I'm splitting my time between{' '}
-          <a href={MILAN_URL} target="_blank" rel="noopener noreferrer" className="underline">
-            Milan
-          </a>{' '}
+          <CityLive
+            name="Milan"
+            timezone="Europe/Rome"
+            tempC={temps.milan}
+            isActive={activeCity === 'milan'}
+            hoverCapable={hoverCapable}
+            now={now}
+            onActivate={() => activateCity('milan')}
+            onDeactivate={() => deactivateCity('milan')}
+          />{' '}
           and{' '}
-          <a href={HELSINKI_URL} target="_blank" rel="noopener noreferrer" className="underline">
-            Helsinki
-          </a>
+          <CityLive
+            name="Helsinki"
+            timezone="Europe/Helsinki"
+            tempC={temps.helsinki}
+            isActive={activeCity === 'helsinki'}
+            hoverCapable={hoverCapable}
+            now={now}
+            onActivate={() => activateCity('helsinki')}
+            onDeactivate={() => deactivateCity('helsinki')}
+          />
           .
         </p>
       </Section>
@@ -454,6 +520,68 @@ function Home() {
       })}
       {destroy === 'falling' && <SnakeDestroy epicenter={epicenter} />}
     </>
+  );
+}
+
+type CityLiveProps = {
+  name: string;
+  timezone: string;
+  tempC: number | null;
+  isActive: boolean;
+  hoverCapable: boolean;
+  now: number;
+  onActivate: () => void;
+  onDeactivate: () => void;
+};
+
+function CityLive({
+  name,
+  timezone,
+  tempC,
+  isActive,
+  hoverCapable,
+  now,
+  onActivate,
+  onDeactivate,
+}: CityLiveProps) {
+  const interactionProps = hoverCapable
+    ? {
+        onPointerEnter: onActivate,
+        onPointerLeave: onDeactivate,
+      }
+    : {
+        onClick: onActivate,
+        onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+      };
+
+  if (!isActive) {
+    return (
+      <span className="underline" style={{ cursor: 'default' }} {...interactionProps}>
+        {name}
+      </span>
+    );
+  }
+
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(now));
+  const hh = parts.find((p) => p.type === 'hour')?.value ?? '--';
+  const mm = parts.find((p) => p.type === 'minute')?.value ?? '--';
+
+  return (
+    <span
+      style={{ cursor: 'default', fontVariantNumeric: 'tabular-nums' }}
+      aria-label={name}
+      {...interactionProps}
+    >
+      {hh}
+      <span className="snake-blink">:</span>
+      {mm}
+      {tempC != null ? ` ${tempC}°C` : ''}
+    </span>
   );
 }
 
