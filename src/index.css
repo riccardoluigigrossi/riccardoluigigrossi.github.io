@@ -494,29 +494,6 @@
   cursor: pointer;
 }
 
-.classic-link {
-  text-decoration: underline;
-}
-
-.classic-letter {
-  will-change: opacity;
-}
-
-.classic-waving .classic-letter {
-  animation: classic-wave 300ms ease-in-out 1 both;
-}
-
-@keyframes classic-wave {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .classic-waving .classic-letter {
-    animation: none;
-  }
-}
-
 @media (max-width: 599px) {
   .projects-wrap {
     overflow-x: auto;

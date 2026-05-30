@@ -25,6 +25,9 @@ const VIDEO_H = 287;
 const CURSOR_OFFSET = 16;
 const VIEWPORT_PAD = 8;
 
+const H1_TEXT = 'Riccardo L. Grossi';
+const SNAKE_CELL = 24;
+
 const SHELL =
   "min-h-screen bg-white dark:bg-black text-black dark:text-white px-8 py-16 font-['Inter:Medium',sans-serif] font-medium text-[19px] tracking-[-0.311px] leading-[24.883px] flex items-center justify-center";
 
@@ -120,6 +123,11 @@ function Home() {
     milan: null,
     helsinki: null,
   });
+  const [h1Hover, setH1Hover] = useState(false);
+  const [initialSnakeBody, setInitialSnakeBody] = useState<{ r: number; c: number }[] | null>(
+    null,
+  );
+  const h1Ref = useRef<HTMLSpanElement>(null);
 
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const learnTimerRef = useRef<number | null>(null);
@@ -202,11 +210,35 @@ function Home() {
     setActiveCity((prev) => (prev === city ? null : prev));
   };
 
-  const handleReject = (e: React.MouseEvent<HTMLSpanElement> | React.KeyboardEvent<HTMLSpanElement>) => {
+  const handleReject = (e: React.MouseEvent<HTMLElement> | React.KeyboardEvent<HTMLElement>) => {
     if (destroy !== 'idle') return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    setEpicenter({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-    setDestroy('falling');
+    let x: number;
+    let y: number;
+    if ('clientX' in e) {
+      x = e.clientX;
+      y = e.clientY;
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      x = rect.left + rect.width / 2;
+      y = rect.top + rect.height / 2;
+    }
+    setH1Hover(true);
+    window.requestAnimationFrame(() => {
+      const h1El = h1Ref.current;
+      let cells: { r: number; c: number }[] | null = null;
+      if (h1El) {
+        const r = h1El.getBoundingClientRect();
+        const row = Math.max(0, Math.floor((r.top + r.height / 2) / SNAKE_CELL));
+        const leftCol = Math.max(0, Math.floor(r.left / SNAKE_CELL));
+        const rightCol = Math.max(leftCol, Math.floor((r.right - 1) / SNAKE_CELL));
+        const list: { r: number; c: number }[] = [];
+        for (let c = rightCol; c >= leftCol; c--) list.push({ r: row, c });
+        cells = list;
+      }
+      setInitialSnakeBody(cells);
+      setEpicenter({ x, y });
+      setDestroy('falling');
+    });
   };
 
   useEffect(() => {
@@ -258,7 +290,25 @@ function Home() {
 
   return (
     <>
-      <h1 className="mb-0">Riccardo L. Grossi</h1>
+      <h1 className="mb-0">
+        <span
+          ref={h1Ref}
+          data-snake-skip
+          style={{ cursor: 'pointer' }}
+          tabIndex={0}
+          onClick={handleReject}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleReject(e);
+            }
+          }}
+          onPointerEnter={hoverCapable ? () => setH1Hover(true) : undefined}
+          onPointerLeave={hoverCapable ? () => setH1Hover(false) : undefined}
+        >
+          {h1Hover ? H1_TEXT.replace(/\S/g, '#') : H1_TEXT}
+        </span>
+      </h1>
       <h2 className="mb-[24.883px]">Digital Product and Service Designer</h2>
 
       <Section title="About" isOpen={open.about} onToggle={() => toggle('about')}>
@@ -428,20 +478,14 @@ function Home() {
             sports
           </a>
           : running, casually biking and, whenever possible, hiking. But I also enjoy videogames, wanna go for a little{' '}
-          <a
-            key={classicWave}
-            href="#/snake"
-            className={`classic-link${classicWave > 0 ? ' classic-waving' : ''}`}
-          >
-            {Array.from('classic').map((ch, i) => (
-              <span
-                key={i}
-                className="classic-letter"
-                style={{ animationDelay: `${i * 150}ms` }}
-              >
-                {ch}
-              </span>
-            ))}
+          <a href="#/snake" className="underline">
+            <SwapWave
+              text="classic"
+              replacement="#"
+              active={classicWave > 0}
+              staggerMs={120}
+              holdMs={350}
+            />
           </a>
           ?
         </p>
@@ -453,7 +497,7 @@ function Home() {
             Email
           </a>
         </p>
-        <p className="mb-[24.883px]">
+        <p className="mb-0">
           <a
             href="https://www.linkedin.com/in/riccardo-luigi-grossi-ba3238206/"
             target="_blank"
@@ -462,23 +506,6 @@ function Home() {
           >
             LinkedIn
           </a>
-        </p>
-        <p className="mb-0">
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={handleReject}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleReject(e);
-              }
-            }}
-            style={{ cursor: 'pointer', userSelect: 'none' }}
-            className={destroy === 'idle' ? 'underline' : undefined}
-          >
-            {destroy === 'idle' ? "Leave no trace" : ''}
-          </span>
         </p>
       </Section>
 
@@ -518,7 +545,73 @@ function Home() {
           />
         );
       })}
-      {destroy === 'falling' && <SnakeDestroy epicenter={epicenter} />}
+      {destroy === 'falling' && (
+        <SnakeDestroy epicenter={epicenter} initialBody={initialSnakeBody} />
+      )}
+    </>
+  );
+}
+
+type SwapWaveProps = {
+  text: string;
+  replacement: string;
+  active: boolean;
+  staggerMs?: number;
+  holdMs?: number;
+};
+
+function SwapWave({
+  text,
+  replacement,
+  active,
+  staggerMs = 100,
+  holdMs = 300,
+}: SwapWaveProps) {
+  const [swapped, setSwapped] = useState<Set<number>>(() => new Set());
+
+  useEffect(() => {
+    if (!active) {
+      setSwapped(new Set());
+      return;
+    }
+    const reducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reducedMotion) return;
+
+    const chars = [...text];
+    const revertOffset = (chars.length - 1) * staggerMs + holdMs;
+    const timers: number[] = [];
+    chars.forEach((char, i) => {
+      if (/\s/.test(char)) return;
+      timers.push(
+        window.setTimeout(() => {
+          setSwapped((prev) => new Set(prev).add(i));
+        }, i * staggerMs),
+      );
+      timers.push(
+        window.setTimeout(() => {
+          setSwapped((prev) => {
+            const next = new Set(prev);
+            next.delete(i);
+            return next;
+          });
+        }, revertOffset + i * staggerMs),
+      );
+    });
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id));
+    };
+  }, [active, text, staggerMs, holdMs]);
+
+  if (!active) return <>{text}</>;
+
+  return (
+    <>
+      {[...text].map((char, i) => {
+        if (/\s/.test(char)) return <span key={i}>{char}</span>;
+        return <span key={i}>{swapped.has(i) ? replacement : char}</span>;
+      })}
     </>
   );
 }

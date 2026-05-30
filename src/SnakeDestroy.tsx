@@ -35,9 +35,11 @@ function wrap(n: number, mod: number) {
 export default function SnakeDestroy({
   targetSelector = '[data-snake-text-box]',
   epicenter,
+  initialBody,
 }: {
   targetSelector?: string;
   epicenter?: { x: number; y: number } | null;
+  initialBody?: Cell[] | null;
 }) {
   useEffect(() => {
     const root = document.querySelector(targetSelector) as HTMLElement | null;
@@ -120,6 +122,7 @@ export default function SnakeDestroy({
 
     const links = Array.from(root.querySelectorAll('a')) as HTMLAnchorElement[];
     for (const link of links) {
+      if (link.closest('[data-snake-skip]')) continue;
       const range = document.createRange();
       range.selectNodeContents(link);
       const rects = Array.from(range.getClientRects()).filter(
@@ -151,6 +154,7 @@ export default function SnakeDestroy({
       if (!text.trim()) continue;
       const parent = (node as Text).parentElement;
       if (!parent) continue;
+      if (parent.closest('[data-snake-skip]')) continue;
       const parentRect = parent.getBoundingClientRect();
       if (parentRect.width === 0 || parentRect.height === 0) continue;
       const style = window.getComputedStyle(parent);
@@ -192,11 +196,18 @@ export default function SnakeDestroy({
       c: Math.max(0, Math.min(cols - 1, Math.floor(ex / CELL))),
     };
     let dir: Dir = 'right';
-    const snake: Cell[] = [
-      { r: epCell.r, c: epCell.c },
-      { r: epCell.r, c: wrap(epCell.c - 1, cols) },
-      { r: epCell.r, c: wrap(epCell.c - 2, cols) },
-    ];
+    const clamp = (cell: Cell): Cell => ({
+      r: Math.max(0, Math.min(rows - 1, cell.r)),
+      c: Math.max(0, Math.min(cols - 1, cell.c)),
+    });
+    const snake: Cell[] =
+      initialBody && initialBody.length > 0
+        ? initialBody.map(clamp)
+        : [
+            { r: epCell.r, c: epCell.c },
+            { r: epCell.r, c: wrap(epCell.c - 1, cols) },
+            { r: epCell.r, c: wrap(epCell.c - 2, cols) },
+          ];
 
     const snakeEls: HTMLSpanElement[] = [];
     const bodyColor = getComputedStyle(document.body).color;
