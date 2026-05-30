@@ -411,7 +411,7 @@ function Home() {
             style={{ cursor: 'pointer', userSelect: 'none' }}
             className={destroy === 'idle' ? 'underline' : undefined}
           >
-            {destroy === 'idle' ? "Leave instead" : 'Closing'}
+            {destroy === 'idle' ? "Leave no trace" : ''}
           </span>
         </p>
       </Section>
