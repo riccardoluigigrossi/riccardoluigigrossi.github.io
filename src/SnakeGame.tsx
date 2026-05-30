@@ -17,6 +17,23 @@ const GAME_OVER_ASCII = ` _____ _____ _____ _____    _____ _____ _____ _____
 |  |  |     | | | |   __|  |  |  |  |  |   __|    -|
 |_____|__|__|_|_|_|_____|  |_____|\\___/|_____|__|__|`;
 
+const GAME_OVER_ASCII_STACKED = ` _____ _____ _____ _____
+|   __|  _  |     |   __|
+|  |  |     | | | |   __|
+|_____|__|__|_|_|_|_____|
+
+ _____ _____ _____ _____
+|     |  |  |   __| __  |
+|  |  |  |  |   __|    -|
+|_____|\\___/|_____|__|__|`;
+
+const NARROW_QUERY = '(max-width: 600px)';
+
+function isNarrowViewport(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia(NARROW_QUERY).matches;
+}
+
 function isHoverCapable(): boolean {
   if (typeof window === 'undefined') return true;
   return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
@@ -188,6 +205,7 @@ function step(s: State, dims: Dims, forbidden: Rect[]): State {
 
 export default function SnakeGame() {
   const hoverCapable = useMemo(() => isHoverCapable(), []);
+  const [isNarrow, setIsNarrow] = useState<boolean>(() => isNarrowViewport());
   const [dims, setDims] = useState<Dims>(() => readDims());
   const dimsRef = useRef(dims);
   dimsRef.current = dims;
@@ -202,6 +220,13 @@ export default function SnakeGame() {
     return () => {
       document.body.style.overflow = prev;
     };
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_QUERY);
+    const handler = (e: MediaQueryListEvent) => setIsNarrow(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
 
   useEffect(() => {
@@ -383,7 +408,7 @@ export default function SnakeGame() {
 
       {state.dead && (
         <OverlayBox
-          asciiTitle={GAME_OVER_ASCII}
+          asciiTitle={isNarrow ? GAME_OVER_ASCII_STACKED : GAME_OVER_ASCII}
           lines={[
             `Score: ${state.score}`,
             hoverCapable ? 'Press R to restart' : 'Tap to restart',
