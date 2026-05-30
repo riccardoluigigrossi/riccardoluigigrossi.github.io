@@ -388,7 +388,7 @@ export default function SnakeGame() {
           pointerEvents: 'auto',
         }}
       >
-        <a href="#" className="underline">
+        <a href="#" style={{ textDecoration: 'none', color: 'inherit' }}>
           [Close]
         </a>
       </div>
