@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const CELL = 24;
 const PLAYER_CHAR = '#';
@@ -72,9 +72,12 @@ function isHoverCapable(): boolean {
 }
 
 function readDims(): Dims {
+  const viewport = window.visualViewport;
+  const width = viewport?.width ?? window.innerWidth;
+  const height = viewport?.height ?? window.innerHeight;
   return {
-    rows: Math.max(8, Math.floor(window.innerHeight / CELL)),
-    cols: Math.max(8, Math.floor(window.innerWidth / CELL)),
+    rows: Math.max(8, Math.floor(height / CELL)),
+    cols: Math.max(8, Math.floor(width / CELL)),
   };
 }
 
@@ -359,12 +362,16 @@ export default function MazeGame() {
       setDims(readDims());
     };
     window.addEventListener('resize', refresh);
+    window.visualViewport?.addEventListener('resize', refresh);
+    window.visualViewport?.addEventListener('scroll', refresh);
     return () => {
       window.removeEventListener('resize', refresh);
+      window.visualViewport?.removeEventListener('resize', refresh);
+      window.visualViewport?.removeEventListener('scroll', refresh);
     };
   }, []);
 
-  const buildLevelState = (level: number, started: boolean): State => {
+  const buildLevelState = useCallback((level: number, started: boolean): State => {
     const layout = computeLayout(dimsRef.current, hoverCapable);
     const mazes = layout.boundsList.map((b) => {
       if (layout.mode === 'split') {
@@ -383,7 +390,7 @@ export default function MazeGame() {
       completed: mazes.map(() => false),
       blinking: true,
     };
-  };
+  }, [hoverCapable]);
 
   const beginLevel = (level: number) => {
     const s = stateRef.current;
@@ -402,8 +409,17 @@ export default function MazeGame() {
     if (previewBuiltRef.current) return;
     previewBuiltRef.current = true;
     setState(buildLevelState(1, false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [buildLevelState]);
+
+  useEffect(() => {
+    const s = stateRef.current;
+    if (s.mazes.length === 0) return;
+    const mazeExceedsViewport = s.mazes.some(
+      (m) => m.gridEndR >= dims.rows || m.gridEndC >= dims.cols,
+    );
+    if (s.started && !mazeExceedsViewport) return;
+    setState(buildLevelState(s.level, s.started));
+  }, [buildLevelState, dims.rows, dims.cols]);
 
   const tryMove = (dir: Dir) => {
     const s = stateRef.current;

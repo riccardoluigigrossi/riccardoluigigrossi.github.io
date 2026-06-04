@@ -347,7 +347,12 @@ function Home() {
 
       <Section title="Projects" isOpen={open.projects} onToggle={() => toggle('projects')}>
         <div className="projects-wrap">
-          <table className="projects-table">
+          <table className="projects-table aligned-table">
+            <colgroup>
+              <col className="name-col" />
+              <col />
+              <col />
+            </colgroup>
             <tbody>
               {PROJECTS.map((p) => {
                 const isPublic = p.access === 'Public';
@@ -438,30 +443,42 @@ function Home() {
           If you've made it this far, you deserve a break. I built a couple of tiny games for this website. Give them a try.
         </p>
         <div className="projects-wrap mb-[24.883px]">
-          <table className="projects-table">
+          <table className="projects-table aligned-table play-table">
+            <colgroup>
+              <col className="name-col" />
+              <col />
+            </colgroup>
             <tbody>
               <tr>
-                <td>Snake</td>
                 <td>
                   <a
                     href="#/snake"
                     aria-label="Play Snake"
                     style={{ textDecoration: 'none', cursor: 'pointer', userSelect: 'none' }}
                   >
-                    [Play]
+                    [Snake]
                   </a>
+                </td>
+                <td>
+                  Dedicated to Finland and to the game that lived
+                  <br />
+                  on every Nokia phone.
                 </td>
               </tr>
               <tr>
-                <td>Maze</td>
                 <td>
                   <a
                     href="#/maze"
                     aria-label="Play Maze"
                     style={{ textDecoration: 'none', cursor: 'pointer', userSelect: 'none' }}
                   >
-                    [Play]
+                    [Maze]
                   </a>
+                </td>
+                <td>
+                  Reminder that feeling lost is often part of finding
+                  <br />
+                  the way, isn’t it?
                 </td>
               </tr>
             </tbody>
