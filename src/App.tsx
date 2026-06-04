@@ -491,7 +491,7 @@ function Home() {
             data-snake-skip
             role="button"
             tabIndex={0}
-            className="underline"
+            className={creatureHover ? '' : 'underline'}
             style={{ cursor: 'pointer' }}
             onClick={handleReject}
             onKeyDown={(e) => {
