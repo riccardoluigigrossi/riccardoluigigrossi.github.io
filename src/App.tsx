@@ -476,9 +476,9 @@ function Home() {
                   </a>
                 </td>
                 <td>
-                  Reminder that feeling lost is often part of getting
+                  Sometimes the way forward starts with not
                   <br />
-                  somewhere meaningful.
+                  knowing where you are going.
                 </td>
               </tr>
             </tbody>
