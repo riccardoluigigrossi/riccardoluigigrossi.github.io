@@ -476,9 +476,9 @@ function Home() {
                   </a>
                 </td>
                 <td>
-                  Reminder that feeling lost is often part of
+                  Reminder that feeling lost is often part of getting
                   <br />
-                  getting somewhere meaningful
+                  somewhere meaningful.
                 </td>
               </tr>
             </tbody>
