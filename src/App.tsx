@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import MazeGame from './MazeGame';
 import SnakeGame from './SnakeGame';
 import SnakeDestroy from './SnakeDestroy';
 
@@ -86,6 +87,7 @@ export default function App() {
         </div>
       </div>
       {hash === '#/snake' && <SnakeGame />}
+      {hash === '#/maze' && <MazeGame />}
     </>
   );
 }
@@ -94,7 +96,7 @@ function Home() {
   const [open, setOpen] = useState({
     about: true,
     projects: false,
-    interests: false,
+    play: false,
     contact: false,
   });
   const toggle = (key: keyof typeof open) =>
@@ -113,7 +115,6 @@ function Home() {
     null,
   );
   const [learned, setLearned] = useState(false);
-  const [classicWave, setClassicWave] = useState(0);
   const [destroy, setDestroy] = useState<'idle' | 'falling'>('idle');
   const [epicenter, setEpicenter] = useState<{ x: number; y: number } | null>(null);
 
@@ -123,16 +124,15 @@ function Home() {
     milan: null,
     helsinki: null,
   });
-  const [h1Hover, setH1Hover] = useState(false);
+  const [creatureHover, setCreatureHover] = useState(false);
   const [initialSnakeBody, setInitialSnakeBody] = useState<{ r: number; c: number }[] | null>(
     null,
   );
-  const h1Ref = useRef<HTMLSpanElement>(null);
+  const creatureRef = useRef<HTMLSpanElement>(null);
 
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const learnTimerRef = useRef<number | null>(null);
   const releaseTimerRef = useRef<number | null>(null);
-  const classicWaveTimersRef = useRef<number[]>([]);
   const cityTimerRef = useRef<number | null>(null);
 
   const activeSlug = hovered?.slug ?? pressing?.slug ?? null;
@@ -222,12 +222,12 @@ function Home() {
       x = rect.left + rect.width / 2;
       y = rect.top + rect.height / 2;
     }
-    setH1Hover(true);
+    setCreatureHover(true);
     window.requestAnimationFrame(() => {
-      const h1El = h1Ref.current;
+      const el = creatureRef.current;
       let cells: { r: number; c: number }[] | null = null;
-      if (h1El) {
-        const r = h1El.getBoundingClientRect();
+      if (el) {
+        const r = el.getBoundingClientRect();
         const row = Math.max(0, Math.floor((r.top + r.height / 2) / SNAKE_CELL));
         const leftCol = Math.max(0, Math.floor(r.left / SNAKE_CELL));
         const rightCol = Math.max(leftCol, Math.floor((r.right - 1) / SNAKE_CELL));
@@ -240,21 +240,6 @@ function Home() {
       setDestroy('falling');
     });
   };
-
-  useEffect(() => {
-    classicWaveTimersRef.current.forEach((id) => window.clearTimeout(id));
-    classicWaveTimersRef.current = [];
-    if (!open.interests) {
-      setClassicWave(0);
-      return;
-    }
-    const t1 = window.setTimeout(() => setClassicWave(1), 3000);
-    classicWaveTimersRef.current = [t1];
-    return () => {
-      classicWaveTimersRef.current.forEach((id) => window.clearTimeout(id));
-      classicWaveTimersRef.current = [];
-    };
-  }, [open.interests]);
 
   const startPress = (slug: string, rowRect: DOMRect) => {
     setPressing({ slug, rowRect });
@@ -290,25 +275,7 @@ function Home() {
 
   return (
     <>
-      <h1 className="mb-0">
-        <span
-          ref={h1Ref}
-          data-snake-skip
-          style={{ cursor: 'pointer' }}
-          tabIndex={0}
-          onClick={handleReject}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleReject(e);
-            }
-          }}
-          onPointerEnter={hoverCapable ? () => setH1Hover(true) : undefined}
-          onPointerLeave={hoverCapable ? () => setH1Hover(false) : undefined}
-        >
-          {h1Hover ? H1_TEXT.replace(/\S/g, '#') : H1_TEXT}
-        </span>
-      </h1>
+      <h1 className="mb-0">{H1_TEXT}</h1>
       <h2 className="mb-[24.883px]">Digital Product and Service Designer</h2>
 
       <Section title="About" isOpen={open.about} onToggle={() => toggle('about')}>
@@ -380,7 +347,12 @@ function Home() {
 
       <Section title="Projects" isOpen={open.projects} onToggle={() => toggle('projects')}>
         <div className="projects-wrap">
-          <table className="projects-table">
+          <table className="projects-table aligned-table">
+            <colgroup>
+              <col className="name-col" />
+              <col />
+              <col />
+            </colgroup>
             <tbody>
               {PROJECTS.map((p) => {
                 const isPublic = p.access === 'Public';
@@ -466,28 +438,74 @@ function Home() {
         </div>
       </Section>
 
-      <Section title="Interests" isOpen={open.interests} onToggle={() => toggle('interests')}>
+      <Section title="Play" isOpen={open.play} onToggle={() => toggle('play')}>
+        <p className="mb-[24.883px]">
+          If you've made it this far, you deserve a break. I built a couple of tiny games for this website. Give them a try.
+        </p>
+        <div className="projects-wrap mb-[24.883px]">
+          <table className="projects-table aligned-table play-table">
+            <colgroup>
+              <col className="name-col" />
+              <col />
+            </colgroup>
+            <tbody>
+              <tr>
+                <td>
+                  <a
+                    href="#/snake"
+                    aria-label="Play Snake"
+                    style={{ textDecoration: 'none', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    [Snake]
+                  </a>
+                </td>
+                <td>
+                  Dedicated to Finland and to the game that lived
+                  <br />
+                  on every Nokia phone.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <a
+                    href="#/maze"
+                    aria-label="Play Maze"
+                    style={{ textDecoration: 'none', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    [Maze]
+                  </a>
+                </td>
+                <td>
+                  Reminder that feeling lost is often part of finding
+                  <br />
+                  the way, isn’t it?
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <p className="mb-0">
-          Mostly outdoorsy{' '}
-          <a
-            href="https://www.strava.com/athletes/116349092"
-            target="_blank"
-            rel="noopener noreferrer"
+          Not interested? That's okay. The{' '}
+          <span
+            ref={creatureRef}
+            data-snake-skip
+            role="button"
+            tabIndex={0}
             className="underline"
+            style={{ cursor: 'pointer' }}
+            onClick={handleReject}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleReject(e);
+              }
+            }}
+            onPointerEnter={hoverCapable ? () => setCreatureHover(true) : undefined}
+            onPointerLeave={hoverCapable ? () => setCreatureHover(false) : undefined}
           >
-            sports
-          </a>
-          : running, casually biking and, whenever possible, hiking. But I also enjoy videogames, wanna go for a little{' '}
-          <a href="#/snake" className="underline">
-            <SwapWave
-              text="classic"
-              replacement="#"
-              active={classicWave > 0}
-              staggerMs={120}
-              holdMs={350}
-            />
-          </a>
-          ?
+            {creatureHover ? 'creature'.replace(/\S/g, '#') : 'creature'}
+          </span>
+          {' '}will play eventually.
         </p>
       </Section>
 
@@ -548,70 +566,6 @@ function Home() {
       {destroy === 'falling' && (
         <SnakeDestroy epicenter={epicenter} initialBody={initialSnakeBody} />
       )}
-    </>
-  );
-}
-
-type SwapWaveProps = {
-  text: string;
-  replacement: string;
-  active: boolean;
-  staggerMs?: number;
-  holdMs?: number;
-};
-
-function SwapWave({
-  text,
-  replacement,
-  active,
-  staggerMs = 100,
-  holdMs = 300,
-}: SwapWaveProps) {
-  const [swapped, setSwapped] = useState<Set<number>>(() => new Set());
-
-  useEffect(() => {
-    if (!active) {
-      setSwapped(new Set());
-      return;
-    }
-    const reducedMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reducedMotion) return;
-
-    const chars = [...text];
-    const revertOffset = (chars.length - 1) * staggerMs + holdMs;
-    const timers: number[] = [];
-    chars.forEach((char, i) => {
-      if (/\s/.test(char)) return;
-      timers.push(
-        window.setTimeout(() => {
-          setSwapped((prev) => new Set(prev).add(i));
-        }, i * staggerMs),
-      );
-      timers.push(
-        window.setTimeout(() => {
-          setSwapped((prev) => {
-            const next = new Set(prev);
-            next.delete(i);
-            return next;
-          });
-        }, revertOffset + i * staggerMs),
-      );
-    });
-    return () => {
-      timers.forEach((id) => window.clearTimeout(id));
-    };
-  }, [active, text, staggerMs, holdMs]);
-
-  if (!active) return <>{text}</>;
-
-  return (
-    <>
-      {[...text].map((char, i) => {
-        if (/\s/.test(char)) return <span key={i}>{char}</span>;
-        return <span key={i}>{swapped.has(i) ? replacement : char}</span>;
-      })}
     </>
   );
 }
