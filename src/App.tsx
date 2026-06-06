@@ -29,6 +29,9 @@ const VIEWPORT_PAD = 8;
 const H1_TEXT = 'Riccardo L. Grossi';
 const SNAKE_CELL = 24;
 
+// Public Web3Forms key — safe to expose client-side. Free key at https://web3forms.com.
+const WEB3FORMS_ACCESS_KEY = 'bb42ece5-f681-4509-ba31-cf132cf08797';
+
 const SHELL =
   "min-h-screen bg-white dark:bg-black text-black dark:text-white px-8 py-16 font-['Inter:Medium',sans-serif] font-medium text-[19px] tracking-[-0.311px] leading-[24.883px] flex items-center justify-center";
 
@@ -509,13 +512,16 @@ function Home() {
         </p>
       </Section>
 
-      <Section title="Contact" isOpen={open.contact} onToggle={() => toggle('contact')}>
+      <Section title="Connect" isOpen={open.contact} onToggle={() => toggle('contact')}>
         <p className="mb-0">
-          <a href="mailto:riccardoluigigrossi@gmail.com" className="underline">
+          <a
+            href="mailto:riccardoluigigrossi@gmail.com?subject=Hi%20from%20your%20site"
+            className="underline"
+          >
             Email
           </a>
         </p>
-        <p className="mb-0">
+        <p className="mb-[24.883px]">
           <a
             href="https://www.linkedin.com/in/riccardo-luigi-grossi-ba3238206/"
             target="_blank"
@@ -525,6 +531,7 @@ function Home() {
             LinkedIn
           </a>
         </p>
+        <NoteField />
       </Section>
 
       {projectsWithVideo.map((p) => {
@@ -653,6 +660,159 @@ function Section({
         [{title}]
       </h2>
       {isOpen && <div style={{ paddingLeft: 20 }}>{children}</div>}
+    </div>
+  );
+}
+
+function NoteField() {
+  const [active, setActive] = useState(false);
+  const [step, setStep] = useState<'message' | 'name'>('message');
+  const [message, setMessage] = useState('');
+  const [name, setName] = useState('');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [showHint, setShowHint] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const hintTimer = useRef<number | null>(null);
+
+  const armHint = () => {
+    if (hintTimer.current !== null) window.clearTimeout(hintTimer.current);
+    hintTimer.current = window.setTimeout(() => setShowHint(true), 1000);
+  };
+
+  useEffect(() => {
+    if (!active) return;
+    const el = taRef.current;
+    el?.focus();
+    if (el) el.style.height = 'auto';
+    if (hintTimer.current !== null) window.clearTimeout(hintTimer.current);
+    // Name step: keep the "Press Enter" hint visible the whole time (an empty name
+    // is valid — anonymous). Message step: reveal it only after a typing pause.
+    setShowHint(step === 'name');
+  }, [active, step]);
+
+  useEffect(
+    () => () => {
+      if (hintTimer.current !== null) window.clearTimeout(hintTimer.current);
+    },
+    [],
+  );
+
+  const grow = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  };
+
+  const onChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const v = e.target.value;
+    grow(e.target);
+    if (step === 'name') {
+      setName(v);
+      return; // hint stays visible on the name step
+    }
+    setMessage(v);
+    setShowHint(false);
+    if (v.trim()) armHint();
+    else if (hintTimer.current !== null) window.clearTimeout(hintTimer.current);
+  };
+
+  const send = async () => {
+    const body = message.trim();
+    if (!body || status === 'sending') return;
+    setStatus('sending');
+    try {
+      const res = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          access_key: WEB3FORMS_ACCESS_KEY,
+          subject: 'New note from your site',
+          name: name.trim() || 'Anonymous',
+          message: body,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) setStatus('sent');
+      else setStatus('error');
+    } catch {
+      setStatus('error');
+    }
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    e.preventDefault();
+    if (step === 'message') {
+      if (message.trim()) setStep('name');
+    } else {
+      send();
+    }
+  };
+
+  if (status === 'sent') {
+    return (
+      <p className="mb-0" style={{ opacity: 0.5 }}>
+        Thanks, I&apos;ll see this in my inbox.
+      </p>
+    );
+  }
+
+  if (!active) {
+    return (
+      <p className="mb-0">
+        <span
+          role="button"
+          tabIndex={0}
+          className="underline"
+          style={{ cursor: 'pointer' }}
+          onClick={() => setActive(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setActive(true);
+            }
+          }}
+        >
+          Leave a note
+        </span>
+      </p>
+    );
+  }
+
+  return (
+    <div className="mb-0">
+      <textarea
+        ref={taRef}
+        rows={1}
+        value={step === 'message' ? message : name}
+        onChange={onChange}
+        onKeyDown={onKeyDown}
+        placeholder={
+          step === 'message'
+            ? 'Type anything...'
+            : 'Type your name (or leave empty to stay anonymous)'
+        }
+        disabled={status === 'sending'}
+        style={{
+          width: '100%',
+          border: 'none',
+          outline: 'none',
+          resize: 'none',
+          padding: 0,
+          margin: 0,
+          background: 'transparent',
+          overflow: 'hidden',
+          display: 'block',
+          font: 'inherit',
+          color: 'inherit',
+          lineHeight: 'inherit',
+        }}
+      />
+      {showHint && (status === 'idle' || status === 'sending') && (
+        <div style={{ opacity: 0.5 }}>Press Enter</div>
+      )}
+      {status === 'error' && (
+        <div style={{ opacity: 0.5 }}>That didn&apos;t send. Try again?</div>
+      )}
     </div>
   );
 }
