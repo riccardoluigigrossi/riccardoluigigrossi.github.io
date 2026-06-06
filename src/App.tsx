@@ -789,7 +789,7 @@ function NoteField() {
         placeholder={
           step === 'message'
             ? 'Type anything...'
-            : 'Type your name (or leave empty to stay anonymous)'
+            : 'Type your name (or leave empty)'
         }
         disabled={status === 'sending'}
         style={{
