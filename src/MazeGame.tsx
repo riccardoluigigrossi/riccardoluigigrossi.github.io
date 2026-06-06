@@ -8,6 +8,12 @@ const SWIPE_THRESHOLD = 24;
 const HEADER_ROWS = 2;
 const SIDE_MIN_COLS = 10;
 
+// Difficulty floor: reject easy mazes (short or near-straight solution) and keep the
+// best of N random attempts. Tuned by playtesting; see plan.
+const MAZE_ATTEMPTS = 16;
+const DIFFICULTY_LEN_FRAC = 0.6;
+const DIFFICULTY_STRAIGHT_FRAC = 1.3;
+
 const MAZE_ASCII = ` _____ _____ _____ _____
 |     |  _  |___  |   __|
 | | | |     |  ___|   __|
@@ -18,6 +24,7 @@ const NARROW_QUERY = '(max-width: 600px)';
 type Dir = 'up' | 'down' | 'left' | 'right';
 type Edge = 'top' | 'bottom' | 'left' | 'right';
 type Cell = { r: number; c: number };
+type LC = { lr: number; lc: number };
 type Dims = { rows: number; cols: number };
 type Rect = { rowMin: number; rowMax: number; colMin: number; colMax: number };
 type Bounds = { rowStart: number; rowEnd: number; colStart: number; colEnd: number };
@@ -152,11 +159,13 @@ function pickEdge(): Edge {
   return edges[Math.floor(Math.random() * 4)];
 }
 
-function generateMaze(
+type CarveResult = { maze: Maze; startLC: LC; exitLC: LC };
+
+function carveMaze(
   bounds: Bounds,
   forbidden: Rect[],
   corridorTextBoxRect: Rect | null,
-): Maze {
+): CarveResult {
   const gridStartR = bounds.rowStart;
   const gridStartC = bounds.colStart;
   const logicalRows = Math.max(2, Math.floor((bounds.rowEnd - bounds.rowStart) / 2));
@@ -297,17 +306,168 @@ function generateMaze(
   const exitCell = edgeAlignedCell(exitEdge);
   wallCells.delete(cellKey(exitCell.r, exitCell.c));
 
-  return {
-    gridStartR,
-    gridEndR,
-    gridStartC,
-    gridEndC,
-    wallCells,
-    corridorCells,
-    forbidden,
-    startCell,
-    exitEdge,
+  const interiorLC = (cell: Cell, edge: Edge): LC => {
+    const clampR = (lr: number) => Math.min(logicalRows - 1, Math.max(0, lr));
+    const clampC = (lc: number) => Math.min(logicalCols - 1, Math.max(0, lc));
+    const lcFromCol = clampC(Math.round((cell.c - gridStartC - 1) / 2));
+    const lrFromRow = clampR(Math.round((cell.r - gridStartR - 1) / 2));
+    switch (edge) {
+      case 'top':
+        return { lr: 0, lc: lcFromCol };
+      case 'bottom':
+        return { lr: logicalRows - 1, lc: lcFromCol };
+      case 'left':
+        return { lr: lrFromRow, lc: 0 };
+      case 'right':
+        return { lr: lrFromRow, lc: logicalCols - 1 };
+    }
   };
+
+  return {
+    maze: {
+      gridStartR,
+      gridEndR,
+      gridStartC,
+      gridEndC,
+      wallCells,
+      corridorCells,
+      forbidden,
+      startCell,
+      exitEdge,
+    },
+    startLC: interiorLC(startCell, startEdge),
+    exitLC: interiorLC(exitCell, exitEdge),
+  };
+}
+
+type Difficulty = {
+  solutionLen: number;
+  diameter: number;
+  manhattan: number;
+  turns: number;
+  passes: boolean;
+  score: number;
+};
+
+// Score a carved maze on the logical graph: how long and how twisty is the start→exit
+// solution, relative to this maze's own longest possible path. Connectivity is read
+// straight from wallCells, so the corridor hack and forbidden regions are respected.
+function scoreMaze(maze: Maze, startLC: LC, exitLC: LC): Difficulty {
+  const logicalRows = (maze.gridEndR - maze.gridStartR) / 2;
+  const logicalCols = (maze.gridEndC - maze.gridStartC) / 2;
+  const lcToGridR = (lr: number) => maze.gridStartR + 1 + 2 * lr;
+  const lcToGridC = (lc: number) => maze.gridStartC + 1 + 2 * lc;
+  const lcKey = (lr: number, lc: number) => `${lr}:${lc}`;
+
+  const isNode = (lr: number, lc: number) =>
+    lr >= 0 &&
+    lr < logicalRows &&
+    lc >= 0 &&
+    lc < logicalCols &&
+    !maze.wallCells.has(cellKey(lcToGridR(lr), lcToGridC(lc)));
+
+  const connected = (lr: number, lc: number, nlr: number, nlc: number) =>
+    !maze.wallCells.has(cellKey(lcToGridR(lr) + (nlr - lr), lcToGridC(lc) + (nlc - lc)));
+
+  const bfs = (srcLr: number, srcLc: number, withParents: boolean) => {
+    const dist = new Map<string, number>();
+    const parent = withParents ? new Map<string, string>() : null;
+    const queue: [number, number][] = [[srcLr, srcLc]];
+    dist.set(lcKey(srcLr, srcLc), 0);
+    let head = 0;
+    while (head < queue.length) {
+      const [lr, lc] = queue[head++];
+      const base = dist.get(lcKey(lr, lc))!;
+      for (const [dr, dc] of NEIGHBOR_OFFSETS) {
+        const nlr = lr + dr;
+        const nlc = lc + dc;
+        if (!isNode(nlr, nlc) || !connected(lr, lc, nlr, nlc)) continue;
+        const nk = lcKey(nlr, nlc);
+        if (dist.has(nk)) continue;
+        dist.set(nk, base + 1);
+        parent?.set(nk, lcKey(lr, lc));
+        queue.push([nlr, nlc]);
+      }
+    }
+    return { dist, parent };
+  };
+
+  const farthest = (srcLr: number, srcLc: number) => {
+    const { dist } = bfs(srcLr, srcLc, false);
+    let node: [number, number] = [srcLr, srcLc];
+    let best = 0;
+    for (const [k, d] of dist) {
+      if (d > best) {
+        best = d;
+        const [a, b] = k.split(':');
+        node = [Number(a), Number(b)];
+      }
+    }
+    return { node, d: best };
+  };
+
+  const manhattan =
+    Math.abs(startLC.lr - exitLC.lr) + Math.abs(startLC.lc - exitLC.lc);
+
+  if (!isNode(startLC.lr, startLC.lc) || !isNode(exitLC.lr, exitLC.lc)) {
+    return { solutionLen: 0, diameter: 0, manhattan, turns: 0, passes: false, score: Number.NEGATIVE_INFINITY };
+  }
+
+  // Diameter of the start's component (double-BFS) — the hardest route this maze allows.
+  const a = farthest(startLC.lr, startLC.lc);
+  const b = farthest(a.node[0], a.node[1]);
+  const diameter = b.d;
+
+  const { dist, parent } = bfs(startLC.lr, startLC.lc, true);
+  const exitKey = lcKey(exitLC.lr, exitLC.lc);
+  const solutionLen = dist.get(exitKey);
+  if (solutionLen === undefined) {
+    // Exit unreachable from start — unsolvable, never keep it unless nothing else works.
+    return { solutionLen: 0, diameter, manhattan, turns: 0, passes: false, score: Number.NEGATIVE_INFINITY };
+  }
+
+  // Reconstruct the path to count direction changes (twistiness).
+  const path: [number, number][] = [];
+  let cur: string | undefined = exitKey;
+  const startKey = lcKey(startLC.lr, startLC.lc);
+  while (cur !== undefined && cur !== startKey) {
+    const [r, c] = cur.split(':');
+    path.push([Number(r), Number(c)]);
+    cur = parent!.get(cur);
+  }
+  path.push([startLC.lr, startLC.lc]);
+  path.reverse();
+  let turns = 0;
+  for (let i = 2; i < path.length; i++) {
+    const [r0, c0] = path[i - 2];
+    const [r1, c1] = path[i - 1];
+    const [r2, c2] = path[i];
+    if (r1 - r0 !== r2 - r1 || c1 - c0 !== c2 - c1) turns++;
+  }
+
+  const passes =
+    solutionLen >= DIFFICULTY_LEN_FRAC * diameter &&
+    solutionLen >= DIFFICULTY_STRAIGHT_FRAC * manhattan;
+
+  return { solutionLen, diameter, manhattan, turns, passes, score: solutionLen + turns };
+}
+
+// Rejection sampling: generate random mazes and keep the first that clears the difficulty
+// floor; if none do within MAZE_ATTEMPTS, keep the hardest one seen. Keeps the public name
+// so the call site is unchanged.
+function generateMaze(
+  bounds: Bounds,
+  forbidden: Rect[],
+  corridorTextBoxRect: Rect | null,
+): Maze {
+  let best: { maze: Maze; score: number } | null = null;
+  for (let attempt = 0; attempt < MAZE_ATTEMPTS; attempt++) {
+    const { maze, startLC, exitLC } = carveMaze(bounds, forbidden, corridorTextBoxRect);
+    const diff = scoreMaze(maze, startLC, exitLC);
+    if (diff.passes) return maze;
+    if (!best || diff.score > best.score) best = { maze, score: diff.score };
+  }
+  return best!.maze;
 }
 
 type State = {
