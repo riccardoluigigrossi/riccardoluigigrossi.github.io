@@ -348,7 +348,7 @@ function Home() {
         </p>
       </Section>
 
-      <Section title="Projects" isOpen={open.projects} onToggle={() => toggle('projects')}>
+      <Section title="Work" isOpen={open.projects} onToggle={() => toggle('projects')}>
         <div className="projects-wrap">
           <table className="projects-table aligned-table">
             <colgroup>
@@ -443,7 +443,7 @@ function Home() {
 
       <Section title="Play" isOpen={open.play} onToggle={() => toggle('play')}>
         <p className="mb-[24.883px]">
-          If you've made it this far, you deserve a break. I built a couple of tiny games for this website. Give them a try.
+          Enough about work? These little games live here, slow down and enjoy.
         </p>
         <div className="projects-wrap mb-[24.883px]">
           <table className="projects-table aligned-table play-table">
@@ -488,7 +488,7 @@ function Home() {
           </table>
         </div>
         <p className="mb-0">
-          Not interested? That's okay. The{' '}
+          If you're not interested, that's okay. The{' '}
           <span
             ref={creatureRef}
             data-snake-skip
