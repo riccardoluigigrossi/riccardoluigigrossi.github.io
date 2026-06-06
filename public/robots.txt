@@ -14,4 +14,3 @@ User-agent: DuckDuckBot
 Allow: /
 
 Sitemap: https://riccardoluigigrossi.github.io/sitemap.xml
-Host: https://riccardoluigigrossi.github.io
