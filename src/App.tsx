@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import MazeGame from './MazeGame';
 import SnakeGame from './SnakeGame';
 import SnakeDestroy from './SnakeDestroy';
+import PdfViewer from './PdfViewer';
 
 type Access = 'Public' | 'NDA';
 
@@ -12,13 +13,14 @@ type Project = {
   slug: string;
   video?: string;
   pdf?: string;
+  pages?: number;
 };
 
 const PROJECTS: Project[] = [
-  { name: 'Service Atlas', client: 'ABB Motion', access: 'Public', slug: 'service-atlas', video: 'service-atlas.mp4', pdf: 'ABB_Service_Atlas.pdf' },
-  { name: 'Oma', client: 'Finnish Public Healthcare', access: 'Public', slug: 'oma', video: 'oma.mp4', pdf: 'Oma_Healthcare.pdf' },
-  { name: 'EnergyLM', client: 'Aalto University', access: 'Public', slug: 'energylm', video: 'energylm.mp4', pdf: 'EnergyLM_Aalto.pdf' },
-  { name: 'Safety Gate', client: 'European Commission', access: 'Public', slug: 'safety-gate', video: 'safety-gate.mp4', pdf: 'SafetyGate_EU.pdf' },
+  { name: 'Service Atlas', client: 'ABB Motion', access: 'Public', slug: 'service-atlas', video: 'service-atlas.mp4', pdf: 'ABB_Service_Atlas.pdf', pages: 10 },
+  { name: 'Oma', client: 'Finnish Public Healthcare', access: 'Public', slug: 'oma', video: 'oma.mp4', pdf: 'Oma_Healthcare.pdf', pages: 10 },
+  { name: 'EnergyLM', client: 'Aalto University', access: 'Public', slug: 'energylm', video: 'energylm.mp4', pdf: 'EnergyLM_Aalto.pdf', pages: 9 },
+  { name: 'Safety Gate', client: 'European Commission', access: 'Public', slug: 'safety-gate', video: 'safety-gate.mp4', pdf: 'SafetyGate_EU.pdf', pages: 8 },
 ];
 
 const VIDEO_W = 480;
@@ -82,6 +84,9 @@ function useHashRoute() {
 
 export default function App() {
   const hash = useHashRoute();
+  const pdfProject = hash.startsWith('#/pdf/')
+    ? PROJECTS.find((p) => p.slug === hash.slice('#/pdf/'.length))
+    : undefined;
   return (
     <>
       <div className={SHELL}>
@@ -91,6 +96,14 @@ export default function App() {
       </div>
       {hash === '#/snake' && <SnakeGame />}
       {hash === '#/maze' && <MazeGame />}
+      {pdfProject && pdfProject.pdf && pdfProject.pages && (
+        <PdfViewer
+          slug={pdfProject.slug}
+          name={pdfProject.name}
+          pages={pdfProject.pages}
+          pdf={pdfProject.pdf}
+        />
+      )}
     </>
   );
 }
@@ -413,9 +426,8 @@ function Home() {
                     <td>
                       {p.pdf ? (
                         <a
-                          href={`/pdfs/${p.pdf}`}
-                          download
-                          aria-label={`Download ${p.name} PDF`}
+                          href={`#/pdf/${p.slug}`}
+                          aria-label={`Open ${p.name} PDF`}
                           style={{
                             textDecoration: 'none',
                             cursor: 'pointer',
