@@ -443,7 +443,7 @@ function Home() {
 
       <Section title="Play" isOpen={open.play} onToggle={() => toggle('play')}>
         <p className="mb-[24.883px]">
-          Enough about work? These little games live here, slow down and enjoy.
+          Enough about work? Slow down and enjoy these minigames I made.
         </p>
         <div className="projects-wrap mb-[24.883px]">
           <table className="projects-table aligned-table play-table">
@@ -463,9 +463,9 @@ function Home() {
                   </a>
                 </td>
                 <td>
-                  Dedicated to Finland and to the game that lived
+                  Dedicated to my time in Finland and to the game
                   <br />
-                  on every Nokia phone.
+                  that lived on every Nokia phone.
                 </td>
               </tr>
               <tr>
