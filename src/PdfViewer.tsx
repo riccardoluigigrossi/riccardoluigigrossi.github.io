@@ -1,6 +1,21 @@
 import { useEffect } from 'react';
+import { closeRoute } from './closeRoute';
 
 const FONT_FAMILY = "'Inter:Medium', sans-serif";
+
+// Cover slides carry a full-bleed image that runs off the top/bottom/right edges.
+// With the pages now seamless, those hard cuts are visible — feather them into the
+// background. Left stays solid (it's the white text margin); percentages keep the
+// fades clear of the text at every screen size.
+const COVER_FADE_MASK =
+  'linear-gradient(to bottom, transparent 0%, #000 1%, #000 97%, transparent 100%), ' +
+  'linear-gradient(to right, #000 0%, #000 98%, transparent 100%)';
+const COVER_FADE: React.CSSProperties = {
+  WebkitMaskImage: COVER_FADE_MASK,
+  maskImage: COVER_FADE_MASK,
+  WebkitMaskComposite: 'source-in',
+  maskComposite: 'intersect',
+};
 
 type PdfViewerProps = {
   slug: string;
@@ -20,7 +35,7 @@ export default function PdfViewer({ slug, name, pages, pdf }: PdfViewerProps) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') window.location.hash = '';
+      if (e.key === 'Escape') closeRoute();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -35,7 +50,7 @@ export default function PdfViewer({ slug, name, pages, pdf }: PdfViewerProps) {
 
   return (
     <div
-      className="bg-white dark:bg-black text-black dark:text-white"
+      className="bg-white text-black"
       style={{
         position: 'fixed',
         inset: 0,
@@ -50,8 +65,8 @@ export default function PdfViewer({ slug, name, pages, pdf }: PdfViewerProps) {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 16,
-          padding: '64px 16px',
+          gap: 0,
+          padding: '56px 0 0',
         }}
       >
         {Array.from({ length: pages }, (_, i) => {
@@ -69,7 +84,7 @@ export default function PdfViewer({ slug, name, pages, pdf }: PdfViewerProps) {
                 maxWidth: 1280,
                 height: 'auto',
                 display: 'block',
-                boxShadow: '0 1px 24px rgba(0, 0, 0, 0.18)',
+                ...(n === 1 ? COVER_FADE : null),
               }}
             />
           );
@@ -77,7 +92,6 @@ export default function PdfViewer({ slug, name, pages, pdf }: PdfViewerProps) {
       </div>
 
       <div
-        className="bg-white dark:bg-black"
         style={{
           position: 'fixed',
           top: 0,
@@ -98,7 +112,15 @@ export default function PdfViewer({ slug, name, pages, pdf }: PdfViewerProps) {
         >
           [Download]
         </a>
-        <a href="#" aria-label="Close" style={barLink}>
+        <a
+          href="#"
+          aria-label="Close"
+          style={barLink}
+          onClick={(e) => {
+            e.preventDefault();
+            closeRoute();
+          }}
+        >
           [Close]
         </a>
       </div>

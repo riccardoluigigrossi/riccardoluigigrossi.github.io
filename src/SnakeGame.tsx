@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { closeRoute } from './closeRoute';
 
 const CELL = 24;
 const TICK_MS = 120;
@@ -306,7 +307,7 @@ export default function SnakeGame() {
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       if (k === 'escape') {
-        window.location.hash = '';
+        closeRoute();
         return;
       }
       if (k === 'r') {
@@ -388,7 +389,14 @@ export default function SnakeGame() {
           pointerEvents: 'auto',
         }}
       >
-        <a href="#" style={{ textDecoration: 'none', color: 'inherit' }}>
+        <a
+          href="#"
+          style={{ textDecoration: 'none', color: 'inherit' }}
+          onClick={(e) => {
+            e.preventDefault();
+            closeRoute();
+          }}
+        >
           [Close]
         </a>
       </div>
@@ -438,7 +446,7 @@ function OverlayBox({
   return (
     <div
       onClick={() => {
-        window.location.hash = '';
+        closeRoute();
       }}
       style={{
         position: 'absolute',

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { closeRoute } from './closeRoute';
 
 const CELL = 24;
 const PLAYER_CHAR = '#';
@@ -674,7 +675,7 @@ export default function MazeGame() {
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       if (k === 'escape') {
-        window.location.hash = '';
+        closeRoute();
         return;
       }
       const dir = KEY_DIR[k];
@@ -787,7 +788,14 @@ export default function MazeGame() {
           pointerEvents: 'auto',
         }}
       >
-        <a href="#" style={{ textDecoration: 'none', color: 'inherit' }}>
+        <a
+          href="#"
+          style={{ textDecoration: 'none', color: 'inherit' }}
+          onClick={(e) => {
+            e.preventDefault();
+            closeRoute();
+          }}
+        >
           [Close]
         </a>
       </div>
@@ -818,7 +826,7 @@ function OverlayBox({
   return (
     <div
       onClick={() => {
-        window.location.hash = '';
+        closeRoute();
       }}
       style={{
         position: 'absolute',
