@@ -772,7 +772,7 @@ function NoteField() {
             }
           }}
         >
-          Leave a note
+          Send a note
         </span>
       </p>
     );
