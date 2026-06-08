@@ -443,7 +443,7 @@ function Home() {
 
       <Section title="Play" isOpen={open.play} onToggle={() => toggle('play')}>
         <p className="mb-[24.883px]">
-          Enough about work? Slow down and enjoy these minigames I made.
+          Enough about work? Slow down and enjoy my minigames.
         </p>
         <div className="projects-wrap mb-[24.883px]">
           <table className="projects-table aligned-table play-table">
