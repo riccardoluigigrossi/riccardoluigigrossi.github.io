@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Riccardo Luigi Grossi">
+  <style>
+    .g { fill: #000000; }
+    @media (prefers-color-scheme: dark) { .g { fill: #ffffff; } }
+  </style>
+  <g class="g">
+    <rect x="20" y="19" width="10" height="62"/>
+    <rect x="20" y="19" width="21" height="10"/>
+    <rect x="20" y="71" width="21" height="10"/>
+    <rect x="70" y="19" width="10" height="62"/>
+    <rect x="59" y="19" width="21" height="10"/>
+    <rect x="59" y="71" width="21" height="10"/>
+  </g>
+</svg>
