@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import MazeGame from './MazeGame';
 import SnakeGame from './SnakeGame';
 import SnakeDestroy from './SnakeDestroy';
-import PdfViewer from './PdfViewer';
+import ProjectOverlay from './ProjectOverlay';
 
-type Access = 'Public' | 'NDA';
+type Access = 'Public' | 'Confidential';
 
 type Project = {
   name: string;
@@ -12,15 +12,17 @@ type Project = {
   access: Access;
   slug: string;
   video?: string;
-  pdf?: string;
+  // Confidential work has no deck to show: no pages, nothing to click.
   pages?: number;
 };
 
 const PROJECTS: Project[] = [
-  { name: 'Service Atlas', client: 'ABB Motion', access: 'Public', slug: 'service-atlas', video: 'service-atlas.mp4', pdf: 'ABB_Service_Atlas.pdf', pages: 10 },
-  { name: 'Oma', client: 'Finnish Public Healthcare', access: 'Public', slug: 'oma', video: 'oma.mp4', pdf: 'Oma_Healthcare.pdf', pages: 10 },
-  { name: 'EnergyLM', client: 'Aalto University', access: 'Public', slug: 'energylm', video: 'energylm.mp4', pdf: 'EnergyLM_Aalto.pdf', pages: 9 },
-  { name: 'Safety Gate', client: 'European Commission', access: 'Public', slug: 'safety-gate', video: 'safety-gate.mp4', pdf: 'SafetyGate_EU.pdf', pages: 8 },
+  { name: 'Mobile', client: 'Major European Insurance', access: 'Confidential', slug: 'mobile-experience' },
+  { name: 'Web', client: 'Major European Bank', access: 'Confidential', slug: 'web-experience' },
+  { name: 'Service Atlas', client: 'ABB Motion', access: 'Public', slug: 'service-atlas', video: 'service-atlas.mp4', pages: 10 },
+  { name: 'Oma', client: 'Finnish Public Healthcare', access: 'Public', slug: 'oma', video: 'oma.mp4', pages: 10 },
+  { name: 'EnergyLM', client: 'Aalto University', access: 'Public', slug: 'energylm', video: 'energylm.mp4', pages: 9 },
+  { name: 'Safety Gate', client: 'European Commission', access: 'Public', slug: 'safety-gate', video: 'safety-gate.mp4', pages: 8 },
 ];
 
 const VIDEO_W = 480;
@@ -29,6 +31,8 @@ const CURSOR_OFFSET = 16;
 const VIEWPORT_PAD = 8;
 
 const H1_TEXT = 'Riccardo L. Grossi';
+// Below this, a touch is a tap (open the deck); above it, a deliberate hold (play the preview).
+const TAP_MS = 250;
 const SNAKE_CELL = 24;
 
 // Public Web3Forms key — safe to expose client-side. Free key at https://web3forms.com.
@@ -84,8 +88,8 @@ function useHashRoute() {
 
 export default function App() {
   const hash = useHashRoute();
-  const pdfProject = hash.startsWith('#/pdf/')
-    ? PROJECTS.find((p) => p.slug === hash.slice('#/pdf/'.length))
+  const openProject = hash.startsWith('#/pdf/')
+    ? PROJECTS.find((p) => p.slug === hash.slice('#/pdf/'.length) && p.pages)
     : undefined;
   return (
     <>
@@ -96,12 +100,12 @@ export default function App() {
       </div>
       {hash === '#/snake' && <SnakeGame />}
       {hash === '#/maze' && <MazeGame />}
-      {pdfProject && pdfProject.pdf && pdfProject.pages && (
-        <PdfViewer
-          slug={pdfProject.slug}
-          name={pdfProject.name}
-          pages={pdfProject.pages}
-          pdf={pdfProject.pdf}
+      {openProject && (
+        <ProjectOverlay
+          key={openProject.slug}
+          slug={openProject.slug}
+          name={openProject.name}
+          pages={openProject.pages!}
         />
       )}
     </>
@@ -148,6 +152,7 @@ function Home() {
 
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const learnTimerRef = useRef<number | null>(null);
+  const pressStartRef = useRef(0);
   const releaseTimerRef = useRef<number | null>(null);
   const cityTimerRef = useRef<number | null>(null);
 
@@ -257,7 +262,13 @@ function Home() {
     });
   };
 
+  const openDeck = (slug: string) => {
+    setHovered(null);
+    window.location.hash = `#/pdf/${slug}`;
+  };
+
   const startPress = (slug: string, rowRect: DOMRect) => {
+    pressStartRef.current = Date.now();
     setPressing({ slug, rowRect });
     if (learnTimerRef.current !== null) window.clearTimeout(learnTimerRef.current);
     if (!learned) {
@@ -265,12 +276,18 @@ function Home() {
     }
   };
 
-  const endPress = (slug: string) => {
+  const endPress = (slug: string, canOpen = false) => {
+    const held = Date.now() - pressStartRef.current;
     if (learnTimerRef.current !== null) {
       window.clearTimeout(learnTimerRef.current);
       learnTimerRef.current = null;
     }
     setPressing(null);
+    // A quick tap opens the deck; anything longer was a deliberate hold to preview.
+    if (canOpen && held < TAP_MS) {
+      openDeck(slug);
+      return;
+    }
     if (!learned) {
       const until = Date.now() + 3000;
       setRecentRelease({ slug, until });
@@ -371,14 +388,16 @@ function Home() {
             </colgroup>
             <tbody>
               {PROJECTS.map((p) => {
-                const isPublic = p.access === 'Public';
+                const openable = !!p.pages;
                 let nameCell: React.ReactNode = p.name;
-                if (p.video && hoverCapable) {
+                if (openable && p.video && hoverCapable) {
+                  // Hovering plays the preview; clicking opens the deck.
                   nameCell = (
-                    <span
+                    <a
+                      href={`#/pdf/${p.slug}`}
                       className="underline"
-                      style={{ cursor: 'default' }}
-                      aria-label={`Preview ${p.name}`}
+                      style={{ cursor: 'pointer' }}
+                      aria-label={`Open ${p.name}`}
                       onMouseEnter={(e) =>
                         setHovered({ slug: p.slug, x: e.clientX, y: e.clientY })
                       }
@@ -386,11 +405,13 @@ function Home() {
                         setHovered({ slug: p.slug, x: e.clientX, y: e.clientY })
                       }
                       onMouseLeave={() => setHovered(null)}
+                      onClick={() => setHovered(null)}
                     >
                       {p.name}
-                    </span>
+                    </a>
                   );
-                } else if (p.video && !hoverCapable) {
+                } else if (openable && p.video && !hoverCapable) {
+                  // No hover to work with: tap opens the deck, hold plays the preview.
                   const showHint =
                     !learned &&
                     (pressing?.slug === p.slug || recentRelease?.slug === p.slug);
@@ -400,13 +421,19 @@ function Home() {
                         role="button"
                         tabIndex={0}
                         className={`name-touch underline${showHint ? ' snake-blink' : ''}`}
-                        aria-label={`Hold to preview ${p.name}`}
+                        aria-label={`Open ${p.name}, or hold to preview`}
                         onTouchStart={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
                           startPress(p.slug, rect);
                         }}
-                        onTouchEnd={() => endPress(p.slug)}
+                        onTouchEnd={() => endPress(p.slug, true)}
                         onTouchCancel={() => endPress(p.slug)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            openDeck(p.slug);
+                          }
+                        }}
                         onContextMenu={(e) => e.preventDefault()}
                       >
                         {p.name}
@@ -420,34 +447,13 @@ function Home() {
                   );
                 }
                 return (
-                  <tr key={p.slug} className={isPublic ? undefined : 'row-dim'}>
+                  <tr key={p.slug} className={openable ? undefined : 'row-dim'}>
                     <td>{nameCell}</td>
                     <td>{p.client}</td>
-                    <td>
-                      {p.pdf ? (
-                        <a
-                          href={`#/pdf/${p.slug}`}
-                          aria-label={`Open ${p.name} PDF`}
-                          style={{
-                            textDecoration: 'none',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                          }}
-                        >
-                          [PDF]
-                        </a>
-                      ) : (
-                        <span style={{ userSelect: 'none' }}>[PDF]</span>
-                      )}
-                    </td>
+                    <td style={{ userSelect: 'none' }}>{p.access}</td>
                   </tr>
                 );
               })}
-              <tr className="row-dim">
-                <td colSpan={3} style={{ paddingTop: 24 }}>
-                  *additional work is under NDA and will appear here once shareable
-                </td>
-              </tr>
             </tbody>
           </table>
         </div>
