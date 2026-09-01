@@ -23,6 +23,8 @@ function pageSrc(slug: string, i: number): string {
 
 export default function ProjectOverlay({ slug, name, pages }: ProjectOverlayProps) {
   const [index, setIndex] = useState(0);
+  // The arrow-key hint retires as soon as the visitor actually uses the arrows.
+  const [arrowsUsed, setArrowsUsed] = useState(false);
 
   // Paging loops: past the last page comes the first, and vice versa.
   const go = useCallback(
@@ -43,9 +45,10 @@ export default function ProjectOverlay({ slug, name, pages }: ProjectOverlayProp
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeRoute();
-      else if (e.key === 'ArrowRight') go(1);
-      else if (e.key === 'ArrowLeft') go(-1);
-      else return;
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        setArrowsUsed(true);
+        go(e.key === 'ArrowRight' ? 1 : -1);
+      } else return;
       e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
@@ -72,28 +75,6 @@ export default function ProjectOverlay({ slug, name, pages }: ProjectOverlayProp
     textDecoration: 'none',
   };
 
-  const stepButton = (label: string, delta: number, side: 'left' | 'right') => (
-    <button
-      type="button"
-      aria-label={label}
-      className="project-overlay-chrome"
-      style={{
-        ...chrome,
-        bottom: 0,
-        [side]: 0,
-        // Background comes from .project-overlay-chrome — don't shadow it here.
-        border: 'none',
-        cursor: 'pointer',
-      }}
-      onClick={(e) => {
-        e.stopPropagation();
-        go(delta);
-      }}
-    >
-      [{label}]
-    </button>
-  );
-
   return (
     <div
       className="project-overlay"
@@ -117,17 +98,18 @@ export default function ProjectOverlay({ slug, name, pages }: ProjectOverlayProp
       />
 
       <div
-        className="project-overlay-chrome"
+        className={`project-overlay-chrome${arrowsUsed ? '' : ' snake-blink'}`}
         style={{
           ...chrome,
           top: 0,
           left: 0,
           pointerEvents: 'none',
           fontVariantNumeric: 'tabular-nums',
+          whiteSpace: 'nowrap',
         }}
         aria-live="polite"
       >
-        {index + 1}/{pages}
+        {arrowsUsed ? `${index + 1}/${pages}` : 'use arrows to navigate'}
       </div>
 
       <a
@@ -144,8 +126,6 @@ export default function ProjectOverlay({ slug, name, pages }: ProjectOverlayProp
         [Close]
       </a>
 
-      {stepButton('Previous', -1, 'left')}
-      {stepButton('Next', 1, 'right')}
     </div>
   );
 }

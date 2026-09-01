@@ -521,9 +521,10 @@
   display: block;
   user-select: none;
   -webkit-user-drag: none;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.28);
 }
 
+/* No shadow in light mode — the slide sits flat on the page. Dark mode keeps one
+   so the white slide doesn't look like it's floating in a void. */
 .dark .project-overlay-slide {
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
 }

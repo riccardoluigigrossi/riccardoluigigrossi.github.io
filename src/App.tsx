@@ -3,6 +3,7 @@ import MazeGame from './MazeGame';
 import SnakeGame from './SnakeGame';
 import SnakeDestroy from './SnakeDestroy';
 import ProjectOverlay from './ProjectOverlay';
+import PdfViewer from './PdfViewer';
 
 type Access = 'Public' | 'Confidential';
 
@@ -31,6 +32,7 @@ const CURSOR_OFFSET = 16;
 const VIEWPORT_PAD = 8;
 
 const H1_TEXT = 'Riccardo L. Grossi';
+const NARROW_QUERY = '(max-width: 600px)';
 // Below this, a touch is a tap (open the deck); above it, a deliberate hold (play the preview).
 const TAP_MS = 250;
 const SNAKE_CELL = 24;
@@ -86,8 +88,24 @@ function useHashRoute() {
   return hash;
 }
 
+// Phones keep the original full-page, vertically scrolling viewer; the floating
+// slide overlay is for viewports with room to show the page around it.
+function useIsNarrow() {
+  const [narrow, setNarrow] = useState(() =>
+    typeof window === 'undefined' ? false : window.matchMedia(NARROW_QUERY).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_QUERY);
+    const onChange = (e: MediaQueryListEvent) => setNarrow(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return narrow;
+}
+
 export default function App() {
   const hash = useHashRoute();
+  const isNarrow = useIsNarrow();
   const openProject = hash.startsWith('#/pdf/')
     ? PROJECTS.find((p) => p.slug === hash.slice('#/pdf/'.length) && p.pages)
     : undefined;
@@ -100,14 +118,22 @@ export default function App() {
       </div>
       {hash === '#/snake' && <SnakeGame />}
       {hash === '#/maze' && <MazeGame />}
-      {openProject && (
-        <ProjectOverlay
-          key={openProject.slug}
-          slug={openProject.slug}
-          name={openProject.name}
-          pages={openProject.pages!}
-        />
-      )}
+      {openProject &&
+        (isNarrow ? (
+          <PdfViewer
+            key={openProject.slug}
+            slug={openProject.slug}
+            name={openProject.name}
+            pages={openProject.pages!}
+          />
+        ) : (
+          <ProjectOverlay
+            key={openProject.slug}
+            slug={openProject.slug}
+            name={openProject.name}
+            pages={openProject.pages!}
+          />
+        ))}
     </>
   );
 }
