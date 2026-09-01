@@ -522,11 +522,15 @@
   display: block;
   user-select: none;
   -webkit-user-drag: none;
+  /* Light mode: a white slide on a white page has no edge of its own, so give it
+     one. box-sizing is border-box throughout, so this costs no layout width. */
+  border: 1px solid #000;
 }
 
-/* No shadow in light mode — the slide sits flat on the page. Dark mode keeps one
-   so the white slide doesn't look like it's floating in a void. */
+/* Dark mode needs neither — the white slide already reads against black — but a
+   shadow keeps it from looking like it is floating in a void. */
 .dark .project-overlay-slide {
+  border: 0;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
 }
 
