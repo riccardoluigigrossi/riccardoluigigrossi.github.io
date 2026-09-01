@@ -437,7 +437,8 @@
 }
 
 .projects-table {
-  --project-name-col-width: 148px;
+  /* Widest name is "Agentic Experience" (159px) plus the 24px cell gutter. */
+  --project-name-col-width: 188px;
   --project-mobile-table-width: 34rem;
   width: 100%;
   border-collapse: collapse;
@@ -502,6 +503,51 @@
   user-select: none;
   touch-action: manipulation;
   cursor: pointer;
+}
+
+/* Project overlay -------------------------------------------------------- */
+
+/* No scrim: the page behind keeps its full opacity and the slide simply sits on
+   top of it. The whole surface is the click target for paging. */
+.project-overlay {
+  background: transparent;
+  cursor: ew-resize;
+}
+
+/* Deliberately well inside the viewport: big enough to read a dense slide,
+   small enough that the page keeps framing it. Pages are a uniform 1280x720. */
+.project-overlay-slide {
+  width: min(1040px, 72vw, calc(70vh * 1280 / 720));
+  height: auto;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* No shadow in light mode — the slide sits flat on the page. Dark mode keeps one
+   so the white slide doesn't look like it's floating in a void. */
+.dark .project-overlay-slide {
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+}
+
+/* Nothing dims the page, so the corner labels would otherwise land on top of the
+   text behind them. A solid patch of page colour keeps them readable. */
+.project-overlay-chrome {
+  background: #fff;
+}
+
+.dark .project-overlay-chrome {
+  background: #000;
+}
+
+.project-overlay-close {
+  cursor: pointer;
+}
+
+@media (max-width: 599px) {
+  .project-overlay-slide {
+    width: min(94vw, calc(70vh * 1280 / 720));
+  }
 }
 
 @media (max-width: 599px) {

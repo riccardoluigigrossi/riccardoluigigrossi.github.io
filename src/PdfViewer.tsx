@@ -21,10 +21,9 @@ type PdfViewerProps = {
   slug: string;
   name: string;
   pages: number;
-  pdf: string;
 };
 
-export default function PdfViewer({ slug, name, pages, pdf }: PdfViewerProps) {
+export default function PdfViewer({ slug, name, pages }: PdfViewerProps) {
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -98,20 +97,12 @@ export default function PdfViewer({ slug, name, pages, pdf }: PdfViewerProps) {
           left: 0,
           right: 0,
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           alignItems: 'center',
           padding: '16px 24px',
           zIndex: 1,
         }}
       >
-        <a
-          href={`/pdfs/${pdf}`}
-          download
-          aria-label={`Download ${name} PDF`}
-          style={barLink}
-        >
-          [Download]
-        </a>
         <a
           href="#"
           aria-label="Close"
