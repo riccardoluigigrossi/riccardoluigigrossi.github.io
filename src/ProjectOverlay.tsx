@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { closeRoute } from './closeRoute';
 
 // Mirrors the body typography in App.tsx's SHELL so the overlay chrome is
@@ -26,6 +26,9 @@ export default function ProjectOverlay({ slug, name, pages }: ProjectOverlayProp
   // The hint retires as soon as the visitor navigates by any means — arrow key
   // or click — after which the slot shows the page count.
   const [navigated, setNavigated] = useState(false);
+  // The rest of the deck waits until the first page is actually on screen.
+  const [primed, setPrimed] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   // Paging loops: past the last page comes the first, and vice versa.
   const go = useCallback(
@@ -58,11 +61,43 @@ export default function ProjectOverlay({ slug, name, pages }: ProjectOverlayProp
     return () => window.removeEventListener('keydown', onKey);
   }, [go]);
 
-  // A deck is a couple of MB at most — far less than the preview videos already
-  // fetched on load — so pull every page up front and keep paging instant.
+  // Fetch order for everything after page one: the next page first, then the
+  // page a backwards step would wrap to, then the rest in reading order.
+  const queue = useMemo(() => {
+    const rest = Array.from({ length: pages - 1 }, (_, i) => i + 1);
+    if (rest.length > 2) rest.splice(1, 0, rest.pop()!);
+    return rest;
+  }, [pages]);
+
+  // Stage one: nothing competes with the first page. A cached image may already
+  // be complete before React attaches onLoad, and a stalled one shouldn't hold
+  // the queue hostage, so cover both.
   useEffect(() => {
-    for (let i = 0; i < pages; i++) new Image().src = pageSrc(slug, i);
-  }, [slug, pages]);
+    if (imgRef.current?.complete) setPrimed(true);
+    const t = window.setTimeout(() => setPrimed(true), 3000);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  // Stage two: pull the remaining pages one at a time at low priority, so paging
+  // is instant without the open competing with itself.
+  useEffect(() => {
+    if (!primed) return;
+    let cancelled = false;
+    (async () => {
+      for (const i of queue) {
+        if (cancelled) return;
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.fetchPriority = 'low';
+          img.onload = img.onerror = () => resolve();
+          img.src = pageSrc(slug, i);
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [primed, slug, queue]);
 
   // Left half of the viewport steps back, right half steps forward.
   const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -93,11 +128,14 @@ export default function ProjectOverlay({ slug, name, pages }: ProjectOverlayProp
       }}
     >
       <img
+        ref={imgRef}
         className="project-overlay-slide"
         src={pageSrc(slug, index)}
         alt={`${name} — page ${index + 1} of ${pages}`}
         draggable={false}
         decoding="async"
+        fetchPriority="high"
+        onLoad={() => setPrimed(true)}
       />
 
       <div
