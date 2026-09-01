@@ -23,12 +23,16 @@ function pageSrc(slug: string, i: number): string {
 
 export default function ProjectOverlay({ slug, name, pages }: ProjectOverlayProps) {
   const [index, setIndex] = useState(0);
-  // The arrow-key hint retires as soon as the visitor actually uses the arrows.
-  const [arrowsUsed, setArrowsUsed] = useState(false);
+  // The hint retires as soon as the visitor navigates by any means — arrow key
+  // or click — after which the slot shows the page count.
+  const [navigated, setNavigated] = useState(false);
 
   // Paging loops: past the last page comes the first, and vice versa.
   const go = useCallback(
-    (delta: number) => setIndex((i) => (i + delta + pages) % pages),
+    (delta: number) => {
+      setNavigated(true);
+      setIndex((i) => (i + delta + pages) % pages);
+    },
     [pages],
   );
 
@@ -45,10 +49,9 @@ export default function ProjectOverlay({ slug, name, pages }: ProjectOverlayProp
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeRoute();
-      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-        setArrowsUsed(true);
-        go(e.key === 'ArrowRight' ? 1 : -1);
-      } else return;
+      else if (e.key === 'ArrowRight') go(1);
+      else if (e.key === 'ArrowLeft') go(-1);
+      else return;
       e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
@@ -98,7 +101,7 @@ export default function ProjectOverlay({ slug, name, pages }: ProjectOverlayProp
       />
 
       <div
-        className={`project-overlay-chrome${arrowsUsed ? '' : ' snake-blink'}`}
+        className={`project-overlay-chrome${navigated ? '' : ' snake-blink'}`}
         style={{
           ...chrome,
           top: 0,
@@ -109,7 +112,7 @@ export default function ProjectOverlay({ slug, name, pages }: ProjectOverlayProp
         }}
         aria-live="polite"
       >
-        {arrowsUsed ? `${index + 1}/${pages}` : 'Use arrows or click'}
+        {navigated ? `${index + 1}/${pages}` : 'Use arrows or click'}
       </div>
 
       <a
