@@ -437,7 +437,8 @@
 }
 
 .projects-table {
-  --project-name-col-width: 148px;
+  /* Widest name is "Agentic Experience" (159px) plus the 24px cell gutter. */
+  --project-name-col-width: 188px;
   --project-mobile-table-width: 34rem;
   width: 100%;
   border-collapse: collapse;

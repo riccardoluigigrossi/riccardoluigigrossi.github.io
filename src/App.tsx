@@ -9,9 +9,7 @@ type Access = 'Public' | 'Confidential';
 
 type Project = {
   name: string;
-  // Omitted on Confidential rows, where the description and the client are a
-  // single merged line spanning both columns.
-  client?: string;
+  client: string;
   access: Access;
   slug: string;
   video?: string;
@@ -20,8 +18,8 @@ type Project = {
 };
 
 const PROJECTS: Project[] = [
-  { name: 'Agentic Experience for a Global Insurance Group', access: 'Confidential', slug: 'confidential-insurance' },
-  { name: 'Fluid Web Platform for a Leading European Bank', access: 'Confidential', slug: 'confidential-bank' },
+  { name: 'Agentic Experience', client: 'Global Insurance Group', access: 'Confidential', slug: 'confidential-insurance' },
+  { name: 'Fluid Web Platform', client: 'Leading European Bank', access: 'Confidential', slug: 'confidential-bank' },
   { name: 'Service Atlas', client: 'ABB Motion', access: 'Public', slug: 'service-atlas', video: 'service-atlas.mp4', pages: 10 },
   { name: 'Oma', client: 'Finnish Public Healthcare', access: 'Public', slug: 'oma', video: 'oma.mp4', pages: 10 },
   { name: 'EnergyLM', client: 'Aalto University', access: 'Public', slug: 'energylm', video: 'energylm.mp4', pages: 9 },
@@ -476,14 +474,8 @@ function Home() {
                 }
                 return (
                   <tr key={p.slug} className={openable ? undefined : 'row-dim'}>
-                    {p.client ? (
-                      <>
-                        <td>{nameCell}</td>
-                        <td>{p.client}</td>
-                      </>
-                    ) : (
-                      <td colSpan={2}>{nameCell}</td>
-                    )}
+                    <td>{nameCell}</td>
+                    <td>{p.client}</td>
                     <td style={{ userSelect: 'none' }}>{p.access}</td>
                   </tr>
                 );
