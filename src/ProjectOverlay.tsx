@@ -109,7 +109,7 @@ export default function ProjectOverlay({ slug, name, pages }: ProjectOverlayProp
         }}
         aria-live="polite"
       >
-        {arrowsUsed ? `${index + 1}/${pages}` : 'Use arrows to navigate'}
+        {arrowsUsed ? `${index + 1}/${pages}` : 'Use arrows or click'}
       </div>
 
       <a
