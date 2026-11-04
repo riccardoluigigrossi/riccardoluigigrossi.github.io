@@ -462,8 +462,42 @@
   opacity: 0.5;
 }
 
+.section-count {
+  opacity: 0.5;
+}
+
+/* Press ? ------------------------------------------------------------------ */
+
+.shortcut-help {
+  position: fixed;
+  left: 32px;
+  bottom: 24px;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 16px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .play-table td:nth-child(2) {
   white-space: normal;
+}
+
+/* Hovering a game plays it in place of its line; the whole row opens it.
+   Mouse and trackpad screens only. */
+.play-row {
+  cursor: pointer;
+}
+
+.play-desc {
+  position: relative;
+}
+
+.play-peek {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 @keyframes snake-blink {

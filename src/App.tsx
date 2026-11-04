@@ -4,6 +4,11 @@ import SnakeGame from './SnakeGame';
 import SnakeDestroy from './SnakeDestroy';
 import ProjectOverlay from './ProjectOverlay';
 import PdfViewer from './PdfViewer';
+import { installTabSnake } from './tabSnake';
+import AsciiWeather from './AsciiWeather';
+import { WEATHER_KINDS, weatherKind, type WeatherKind } from './weather';
+import { CELL, runSky, type Grid, type Sky } from './grid';
+import { mazePreview, snakePreview } from './gamePreviews';
 
 type Access = 'Public' | 'Confidential';
 
@@ -32,10 +37,27 @@ const CURSOR_OFFSET = 16;
 const VIEWPORT_PAD = 8;
 
 const H1_TEXT = 'Riccardo L. Grossi';
+// Snake and Maze.
+const GAME_COUNT = 2;
 const NARROW_QUERY = '(max-width: 600px)';
 // Below this, a touch is a tap (open the deck); above it, a deliberate hold (play the preview).
 const TAP_MS = 250;
 const SNAKE_CELL = 24;
+
+const EMAIL = 'riccardoluigigrossi@gmail.com';
+
+const SEARCH =
+  typeof window === 'undefined' ? new URLSearchParams() : new URLSearchParams(window.location.search);
+const FORCED_WEATHER = ((): WeatherKind | null => {
+  const w = SEARCH.get('weather');
+  return WEATHER_KINDS.find((k) => k === w) ?? null;
+})();
+// ?daylight=0.5 puts the sun at that point of the day (0 sunrise, 1 sunset).
+const FORCED_DAYLIGHT = SEARCH.has('daylight') ? Number(SEARCH.get('daylight')) : null;
+
+// Sunrise and sunset in the city's own clock, as if it were UTC, plus its offset,
+// so "how far through the day" is plain subtraction.
+type SunTimes = { rise: number; set: number; offsetMs: number };
 
 // Public Web3Forms key — safe to expose client-side. Free key at https://web3forms.com.
 const WEB3FORMS_ACCESS_KEY = 'bb42ece5-f681-4509-ba31-cf132cf08797';
@@ -106,6 +128,7 @@ function useIsNarrow() {
 export default function App() {
   const hash = useHashRoute();
   const isNarrow = useIsNarrow();
+  useEffect(() => installTabSnake(), []);
   const openProject = hash.startsWith('#/pdf/')
     ? PROJECTS.find((p) => p.slug === hash.slice('#/pdf/'.length) && p.pages)
     : undefined;
@@ -113,7 +136,7 @@ export default function App() {
     <>
       <div className={SHELL}>
         <div className="max-w-2xl w-full" data-snake-text-box>
-          <Home />
+          <Home routeOpen={hash.startsWith('#/')} />
         </div>
       </div>
       {hash === '#/snake' && <SnakeGame />}
@@ -138,15 +161,94 @@ export default function App() {
   );
 }
 
-function Home() {
-  const [open, setOpen] = useState({
+type SectionKey = 'about' | 'projects' | 'play' | 'contact';
+
+// Single keys, no modifiers. Hinted at by a comment in index.html.
+const SECTION_KEYS: Record<string, SectionKey> = { a: 'about', w: 'projects', p: 'play', c: 'contact' };
+const ROUTE_KEYS: Record<string, string> = { s: '#/snake', m: '#/maze' };
+const SHORTCUT_HELP: [string, string][] = [
+  ['a', 'about'],
+  ['w', 'work'],
+  ['p', 'play'],
+  ['c', 'connect'],
+  ['s', 'snake'],
+  ['m', 'maze'],
+  ['?', 'close'],
+];
+
+// Leave the page alone this long and the creature comes out. ?idle=5 shortens it.
+const IDLE_MS = (Number(SEARCH.get('idle')) || 45) * 1000;
+const ACTIVITY_EVENTS = ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart', 'resize', 'scroll'];
+
+// Calls `onActivity` when the visitor does something. Browsers also fire pointermove
+// when the page changes under a still cursor, so movement under 3px doesn't count.
+function listenForActivity(onActivity: () => void): () => void {
+  let last: { x: number; y: number } | null = null;
+  const handler = (e: Event) => {
+    if (e.type === 'pointermove') {
+      const p = e as PointerEvent;
+      const prev = last;
+      if (prev && Math.abs(p.clientX - prev.x) + Math.abs(p.clientY - prev.y) < 3) return;
+      last = { x: p.clientX, y: p.clientY };
+      // The first move only tells us where the cursor rests.
+      if (!prev) return;
+    }
+    onActivity();
+  };
+  ACTIVITY_EVENTS.forEach((t) => window.addEventListener(t, handler, { capture: true, passive: true }));
+  return () =>
+    ACTIVITY_EVENTS.forEach((t) => window.removeEventListener(t, handler, { capture: true }));
+}
+
+function Home({ routeOpen }: { routeOpen: boolean }) {
+  const [open, setOpen] = useState<Record<SectionKey, boolean>>({
     about: true,
     projects: false,
     play: false,
     contact: false,
   });
-  const toggle = (key: keyof typeof open) =>
+  const toggle = (key: SectionKey) =>
     setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  // The creature out on its own, eating the page, until the visitor is back.
+  const [roam, setRoam] = useState<'off' | 'out'>('off');
+  const roamRef = useRef(roam);
+  roamRef.current = roam;
+
+  const [showKeys, setShowKeys] = useState(false);
+  useEffect(() => {
+    // Games and decks own the keyboard while they're open.
+    if (routeOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // A key while the creature is out just means "I'm back".
+      if (roamRef.current !== 'off') return;
+      const target = e.target;
+      if (
+        target instanceof Element &&
+        target.closest('input, textarea, select, [contenteditable="true"]')
+      ) {
+        return;
+      }
+      if (e.key === '?') {
+        setShowKeys((v) => !v);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setShowKeys(false);
+        return;
+      }
+      const k = e.key.toLowerCase();
+      const section = SECTION_KEYS[k];
+      if (section) {
+        setOpen((prev) => ({ ...prev, [section]: !prev[section] }));
+        return;
+      }
+      if (ROUTE_KEYS[k]) window.location.hash = ROUTE_KEYS[k];
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [routeOpen]);
 
   const hoverCapable = useMemo(
     () =>
@@ -170,7 +272,16 @@ function Home() {
     milan: null,
     helsinki: null,
   });
+  const [skies, setSkies] = useState<{ milan: WeatherKind | null; helsinki: WeatherKind | null }>({
+    milan: null,
+    helsinki: null,
+  });
+  const [suns, setSuns] = useState<{ milan: SunTimes | null; helsinki: SunTimes | null }>({
+    milan: null,
+    helsinki: null,
+  });
   const [creatureHover, setCreatureHover] = useState(false);
+  const [askAbout, setAskAbout] = useState<string | null>(null);
   const [initialSnakeBody, setInitialSnakeBody] = useState<{ r: number; c: number }[] | null>(
     null,
   );
@@ -217,32 +328,56 @@ function Home() {
 
   useEffect(() => {
     let canceled = false;
-    const fetchTemp = async (lat: number, lon: number): Promise<number | null> => {
+    type Current = { temp: number | null; kind: WeatherKind | null; sun: SunTimes | null };
+    const nothing: Current = { temp: null, kind: null, sun: null };
+    const fetchCurrent = async (lat: number, lon: number): Promise<Current> => {
       try {
         const res = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`,
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,is_day&daily=sunrise,sunset&timezone=auto&forecast_days=1`,
         );
-        if (!res.ok) return null;
+        if (!res.ok) return nothing;
         const json = await res.json();
         const t = json?.current?.temperature_2m;
-        return typeof t === 'number' ? Math.round(t) : null;
+        const code = json?.current?.weather_code;
+        const isDay = json?.current?.is_day;
+        const rise = Date.parse(`${json?.daily?.sunrise?.[0]}Z`);
+        const set = Date.parse(`${json?.daily?.sunset?.[0]}Z`);
+        const offset = json?.utc_offset_seconds;
+        return {
+          temp: typeof t === 'number' ? Math.round(t) : null,
+          kind: weatherKind(
+            typeof code === 'number' ? code : null,
+            typeof isDay === 'number' ? isDay === 1 : null,
+          ),
+          sun:
+            set > rise && typeof offset === 'number'
+              ? { rise, set, offsetMs: offset * 1000 }
+              : null,
+        };
       } catch {
-        return null;
+        return nothing;
       }
     };
-    Promise.allSettled([fetchTemp(45.4642, 9.19), fetchTemp(60.1699, 24.9384)]).then(
-      ([m, h]) => {
-        if (canceled) return;
-        setTemps({
-          milan: m.status === 'fulfilled' ? m.value : null,
-          helsinki: h.status === 'fulfilled' ? h.value : null,
-        });
-      },
-    );
+    Promise.all([fetchCurrent(45.4642, 9.19), fetchCurrent(60.1699, 24.9384)]).then(([m, h]) => {
+      if (canceled) return;
+      setTemps({ milan: m.temp, helsinki: h.temp });
+      setSkies({ milan: m.kind, helsinki: h.kind });
+      setSuns({ milan: m.sun, helsinki: h.sun });
+    });
     return () => {
       canceled = true;
     };
   }, []);
+
+  // ?weather=<kind> (see WEATHER_KINDS) previews a sky on either city, whatever it's doing outside.
+  const activeSky = activeCity ? (FORCED_WEATHER ?? skies[activeCity]) : null;
+  // How far through that city's day it is right now, for placing the sun.
+  const daylight = useMemo(() => {
+    if (FORCED_DAYLIGHT !== null && !Number.isNaN(FORCED_DAYLIGHT)) return FORCED_DAYLIGHT;
+    const sun = activeCity ? suns[activeCity] : null;
+    if (!sun) return 0.5;
+    return (Date.now() + sun.offsetMs - sun.rise) / (sun.set - sun.rise);
+  }, [activeCity, suns]);
 
   const activateCity = (city: 'milan' | 'helsinki') => {
     setActiveCity(city);
@@ -287,6 +422,37 @@ function Home() {
       setDestroy('falling');
     });
   };
+
+  // The creature plays eventually: after IDLE_MS of nobody touching anything it
+  // does exactly what clicking it does, only crawling in from the side. Any sign
+  // of life and the page is back at once. Mouse-and-trackpad screens only: on a
+  // touch screen, sitting still usually just means someone is reading.
+  useEffect(() => {
+    if (!hoverCapable || routeOpen || destroy !== 'idle') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (roam === 'out') return listenForActivity(() => setRoam('off'));
+    let timer = 0;
+    const arm = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        // Not while someone is mid-way through writing a note.
+        const a = document.activeElement;
+        if (a instanceof HTMLTextAreaElement || a instanceof HTMLInputElement) return arm();
+        setRoam('out');
+      }, IDLE_MS);
+    };
+    arm();
+    const stop = listenForActivity(arm);
+    return () => {
+      window.clearTimeout(timer);
+      stop();
+    };
+  }, [roam, routeOpen, destroy, hoverCapable]);
+
+  useEffect(() => {
+    // Opening a game or deck while it's out puts the page back first.
+    if (routeOpen) setRoam('off');
+  }, [routeOpen]);
 
   const openDeck = (slug: string) => {
     setHovered(null);
@@ -404,7 +570,12 @@ function Home() {
         </p>
       </Section>
 
-      <Section title="Work" isOpen={open.projects} onToggle={() => toggle('projects')}>
+      <Section
+        title="Work"
+        isOpen={open.projects}
+        onToggle={() => toggle('projects')}
+        count={PROJECTS.length}
+      >
         <div className="projects-wrap">
           <table className="projects-table aligned-table">
             <colgroup>
@@ -472,6 +643,38 @@ function Home() {
                     </span>
                   );
                 }
+                if (p.access === 'Confidential') {
+                  // Under NDA: hovering swaps the name for an invitation to ask about it.
+                  const asking = askAbout === p.slug;
+                  return (
+                    <tr
+                      key={p.slug}
+                      className="row-dim"
+                      onPointerEnter={hoverCapable ? () => setAskAbout(p.slug) : undefined}
+                      onPointerLeave={hoverCapable ? () => setAskAbout(null) : undefined}
+                      onClick={
+                        hoverCapable
+                          ? undefined
+                          : () => setAskAbout((prev) => (prev === p.slug ? null : p.slug))
+                      }
+                    >
+                      <td style={{ userSelect: 'none' }}>
+                        {asking ? (
+                          <a
+                            href={`mailto:${EMAIL}?subject=${encodeURIComponent(`About ${p.name}`)}`}
+                            className="underline"
+                          >
+                            Ask me
+                          </a>
+                        ) : (
+                          p.name
+                        )}
+                      </td>
+                      <td>{p.client}</td>
+                      <td style={{ userSelect: 'none' }}>{p.access}</td>
+                    </tr>
+                  );
+                }
                 return (
                   <tr key={p.slug} className={openable ? undefined : 'row-dim'}>
                     <td>{nameCell}</td>
@@ -485,7 +688,12 @@ function Home() {
         </div>
       </Section>
 
-      <Section title="Play" isOpen={open.play} onToggle={() => toggle('play')}>
+      <Section
+        title="Play"
+        isOpen={open.play}
+        onToggle={() => toggle('play')}
+        count={GAME_COUNT}
+      >
         <p className="mb-[24.883px]">
           Enough about work? Slow down and enjoy my minigames.
         </p>
@@ -496,38 +704,16 @@ function Home() {
               <col />
             </colgroup>
             <tbody>
-              <tr>
-                <td>
-                  <a
-                    href="#/snake"
-                    aria-label="Play Snake"
-                    style={{ textDecoration: 'none', cursor: 'pointer', userSelect: 'none' }}
-                  >
-                    [Snake]
-                  </a>
-                </td>
-                <td>
-                  Dedicated to my time in Finland and to the game
-                  <br />
-                  that lived on every Nokia phone.
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <a
-                    href="#/maze"
-                    aria-label="Play Maze"
-                    style={{ textDecoration: 'none', cursor: 'pointer', userSelect: 'none' }}
-                  >
-                    [Maze]
-                  </a>
-                </td>
-                <td>
-                  Sometimes the way forward starts with not
-                  <br />
-                  knowing where you are going.
-                </td>
-              </tr>
+              <PlayRow route="#/snake" name="Snake" preview={snakePreview} hoverCapable={hoverCapable}>
+                Dedicated to my time in Finland and to the game
+                <br />
+                that lived on every Nokia phone.
+              </PlayRow>
+              <PlayRow route="#/maze" name="Maze" preview={mazePreview} hoverCapable={hoverCapable}>
+                Sometimes the way forward starts with not
+                <br />
+                knowing where you are going.
+              </PlayRow>
             </tbody>
           </table>
         </div>
@@ -557,26 +743,20 @@ function Home() {
       </Section>
 
       <Section title="Connect" isOpen={open.contact} onToggle={() => toggle('contact')}>
-        <p className="mb-0">
-          <a
-            href="mailto:riccardoluigigrossi@gmail.com?subject=Hi%20from%20your%20site"
-            className="underline"
-          >
-            Email
-          </a>
-        </p>
-        <p className="mb-[24.883px]">
-          <a
-            href="https://www.linkedin.com/in/riccardo-luigi-grossi-ba3238206/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline"
-          >
-            LinkedIn
-          </a>
-        </p>
+        <ConnectLine />
         <NoteField />
       </Section>
+
+      {showKeys && (
+        <div className="shortcut-help" aria-label="Keyboard shortcuts">
+          {SHORTCUT_HELP.map(([key, label]) => (
+            <span key={key} style={{ display: 'contents' }}>
+              <span>{key}</span>
+              <span>{label}</span>
+            </span>
+          ))}
+        </div>
+      )}
 
       {projectsWithVideo.map((p) => {
         const hoverActive = hoverCapable && hovered?.slug === p.slug && pos !== null;
@@ -614,11 +794,86 @@ function Home() {
           />
         );
       })}
+      <AsciiWeather kind={activeSky} daylight={daylight} />
+      {roam === 'out' && !routeOpen && destroy === 'idle' && <SnakeDestroy fromSide />}
       {destroy === 'falling' && (
         <SnakeDestroy epicenter={epicenter} initialBody={initialSnakeBody} />
       )}
     </>
   );
+}
+
+// A game in the Play list. On mouse and trackpad screens, hovering or focusing it
+// swaps its line for the game playing itself in that same spot, and the whole row
+// opens the game. Touch screens get the plain row: the button opens the game.
+function PlayRow({
+  route,
+  name,
+  preview,
+  hoverCapable,
+  children,
+}: {
+  route: string;
+  name: string;
+  preview: (grid: Grid) => Sky;
+  hoverCapable: boolean;
+  children: React.ReactNode;
+}) {
+  const [peek, setPeek] = useState(false);
+  const rowProps = hoverCapable
+    ? {
+        className: 'play-row',
+        onPointerEnter: () => setPeek(true),
+        onPointerLeave: () => setPeek(false),
+        onClick: (e: React.MouseEvent) => {
+          if (!(e.target instanceof Element && e.target.closest('a'))) window.location.hash = route;
+        },
+      }
+    : {};
+
+  return (
+    <tr {...rowProps}>
+      <td>
+        <a
+          href={route}
+          aria-label={`Play ${name}`}
+          style={{ textDecoration: 'none', cursor: 'pointer', userSelect: 'none' }}
+          onFocus={hoverCapable ? () => setPeek(true) : undefined}
+          onBlur={hoverCapable ? () => setPeek(false) : undefined}
+        >
+          [{name}]
+        </a>
+      </td>
+      <td className="play-desc">
+        <span style={{ visibility: peek ? 'hidden' : undefined }}>{children}</span>
+        {peek && <GamePeek preview={preview} />}
+      </td>
+    </tr>
+  );
+}
+
+// The game on the page's character grid, sized to the line it covers.
+function GamePeek({ preview }: { preview: (grid: Grid) => Sky }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const box = el.getBoundingClientRect();
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || CELL;
+    const grid = {
+      cols: Math.max(4, Math.floor(box.width / CELL)),
+      rows: Math.max(2, Math.round(box.height / lineHeight)),
+    };
+    return runSky({
+      container: el,
+      grid,
+      blocked: new Set(),
+      color: getComputedStyle(el).color,
+      sky: preview(grid),
+    });
+  }, [preview]);
+  // data-snake-skip: if the creature comes out mid-preview, it doesn't eat these.
+  return <div ref={ref} className="play-peek" data-snake-skip aria-hidden="true" />;
 }
 
 type CityLiveProps = {
@@ -687,11 +942,14 @@ function Section({
   title,
   isOpen,
   onToggle,
+  count,
   children,
 }: {
   title: string;
   isOpen: boolean;
   onToggle: () => void;
+  // Shown quietly next to a closed heading, so there's a reason to open it.
+  count?: number;
   children: React.ReactNode;
 }) {
   return (
@@ -702,9 +960,55 @@ function Section({
         className={isOpen ? 'mb-[24.883px]' : 'mb-0'}
       >
         [{title}]
+        {!isOpen && count !== undefined && <span className="section-count"> {count}</span>}
       </h2>
       {isOpen && <div style={{ paddingLeft: 20 }}>{children}</div>}
     </div>
+  );
+}
+
+// Hello in the languages of Milan, Helsinki and in between. The word becomes the
+// email's subject, so "moi" arrives as "Moi from your site".
+const GREETINGS = ['ciao', 'moi', 'hi', 'uè', 'hei hei', 'moikka', 'salve', 'terve', 'hello'];
+const GREETING_MS = 2600;
+
+function ConnectLine() {
+  const [i, setI] = useState(0);
+  const [held, setHeld] = useState(false);
+
+  useEffect(() => {
+    // Hold the word still while someone's about to click the email link.
+    if (held) return;
+    const id = window.setInterval(() => setI((n) => (n + 1) % GREETINGS.length), GREETING_MS);
+    return () => window.clearInterval(id);
+  }, [held]);
+
+  const word = GREETINGS[i];
+  const subject = `${word[0].toUpperCase()}${word.slice(1)} from your site`;
+  return (
+    <p className="mb-0">
+      Say {word} to me with an{' '}
+      <a
+        href={`mailto:${EMAIL}?subject=${encodeURIComponent(subject)}`}
+        className="underline"
+        onPointerEnter={() => setHeld(true)}
+        onPointerLeave={() => setHeld(false)}
+        onFocus={() => setHeld(true)}
+        onBlur={() => setHeld(false)}
+      >
+        email
+      </a>{' '}
+      or connect with me on{' '}
+      <a
+        href="https://www.linkedin.com/in/riccardo-luigi-grossi-ba3238206/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline"
+      >
+        LinkedIn
+      </a>
+      .
+    </p>
   );
 }
 
@@ -803,6 +1107,7 @@ function NoteField() {
   if (!active) {
     return (
       <p className="mb-0">
+        You can also{' '}
         <span
           role="button"
           tabIndex={0}
@@ -816,8 +1121,9 @@ function NoteField() {
             }
           }}
         >
-          Leave a note
+          leave a note
         </span>
+        .
       </p>
     );
   }

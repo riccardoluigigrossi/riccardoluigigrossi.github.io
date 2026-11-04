@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
+import { CELL, styleCell } from './grid';
 
-const CELL = 24;
 const TICK_MS = 60;
 const SNAKE_CHAR = '#';
-const FONT_FAMILY = "'Inter:Medium', sans-serif";
 const EXIT_PAD_CELLS = 4;
 
 type Dir = 'up' | 'down' | 'left' | 'right';
@@ -36,10 +35,13 @@ export default function SnakeDestroy({
   targetSelector = '[data-snake-text-box]',
   epicenter,
   initialBody,
+  fromSide = false,
 }: {
   targetSelector?: string;
   epicenter?: { x: number; y: number } | null;
   initialBody?: Cell[] | null;
+  // Crawl in from the left or right edge instead of starting on the page.
+  fromSide?: boolean;
 }) {
   useEffect(() => {
     const root = document.querySelector(targetSelector) as HTMLElement | null;
@@ -200,34 +202,32 @@ export default function SnakeDestroy({
       r: Math.max(0, Math.min(rows - 1, cell.r)),
       c: Math.max(0, Math.min(cols - 1, cell.c)),
     });
-    const snake: Cell[] =
-      initialBody && initialBody.length > 0
-        ? initialBody.map(clamp)
-        : [
-            { r: epCell.r, c: epCell.c },
-            { r: epCell.r, c: wrap(epCell.c - 1, cols) },
-            { r: epCell.r, c: wrap(epCell.c - 2, cols) },
-          ];
+    let snake: Cell[];
+    if (fromSide) {
+      // Head just inside the edge, the rest of the body still off screen.
+      const r = Math.floor(rows / 3 + Math.random() * (rows / 3));
+      const fromLeft = Math.random() < 0.5;
+      dir = fromLeft ? 'right' : 'left';
+      snake = (fromLeft ? [0, -1, -2] : [cols - 1, cols, cols + 1]).map((c) => ({ r, c }));
+    } else {
+      snake =
+        initialBody && initialBody.length > 0
+          ? initialBody.map(clamp)
+          : [
+              { r: epCell.r, c: epCell.c },
+              { r: epCell.r, c: wrap(epCell.c - 1, cols) },
+              { r: epCell.r, c: wrap(epCell.c - 2, cols) },
+            ];
+    }
 
     const snakeEls: HTMLSpanElement[] = [];
     const bodyColor = getComputedStyle(document.body).color;
 
     const makeSegment = (): HTMLSpanElement => {
       const el = document.createElement('span');
-      const s = el.style;
-      s.position = 'fixed';
-      s.width = `${CELL}px`;
-      s.height = `${CELL}px`;
-      s.display = 'flex';
-      s.alignItems = 'center';
-      s.justifyContent = 'center';
-      s.fontFamily = FONT_FAMILY;
-      s.fontWeight = '500';
-      s.fontSize = '19px';
-      s.lineHeight = '1';
-      s.color = bodyColor;
-      s.zIndex = '200';
-      s.pointerEvents = 'none';
+      styleCell(el, bodyColor);
+      el.style.position = 'fixed';
+      el.style.zIndex = '200';
       el.textContent = SNAKE_CHAR;
       document.body.appendChild(el);
       return el;
