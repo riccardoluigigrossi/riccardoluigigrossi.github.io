@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="robots" content="noindex" />
+    <title>Game over · Riccardo Luigi Grossi</title>
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <style>
+      /* Served by GitHub Pages for any path that doesn't exist. Same look as the
+         game screens on the site. */
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #fff;
+        color: #000;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background: #000;
+          color: #fff;
+        }
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 16px;
+        box-sizing: border-box;
+        font-family: 'Inter:Medium', sans-serif;
+        font-weight: 500;
+        font-size: 19px;
+        letter-spacing: -0.311px;
+        line-height: 24.883px;
+      }
+      .box {
+        text-align: center;
+        padding: 24px 32px;
+        border: 1px solid currentColor;
+      }
+      pre {
+        font-family: Menlo, Monaco, 'Courier New', ui-monospace, monospace;
+        font-size: 16px;
+        line-height: 1.25;
+        letter-spacing: -0.5px;
+        margin: 0 0 24.883px;
+        display: inline-block;
+        text-align: left;
+      }
+      .stacked {
+        display: none;
+      }
+      @media (max-width: 600px) {
+        .wide {
+          display: none;
+        }
+        .stacked {
+          display: inline-block;
+        }
+      }
+      p {
+        margin: 0 0 24.883px;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      .blink {
+        animation: blink 1s step-end infinite;
+      }
+      @keyframes blink {
+        0%,
+        49.99% {
+          opacity: 1;
+        }
+        50%,
+        100% {
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <pre class="wide" aria-label="Game over"> _____ _____ _____ _____    _____ _____ _____ _____
+|   __|  _  |     |   __|  |     |  |  |   __| __  |
+|  |  |     | | | |   __|  |  |  |  |  |   __|    -|
+|_____|__|__|_|_|_|_____|  |_____|\___/|_____|__|__|</pre>
+      <pre class="stacked" aria-hidden="true"> _____ _____ _____ _____
+|   __|  _  |     |   __|
+|  |  |     | | | |   __|
+|_____|__|__|_|_|_|_____|
+
+ _____ _____ _____ _____
+|     |  |  |   __| __  |
+|  |  |  |  |   __|    -|
+|_____|\___/|_____|__|__|</pre>
+      <p>This page got eaten.<br />Score: 404</p>
+      <div class="blink"><a href="/#/snake">[Play again]</a> <a href="/">[Home]</a></div>
+    </div>
+    <script>
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') location.href = '/#/snake';
+        if (e.key === 'Escape') location.href = '/';
+      });
+    </script>
+  </body>
+</html>
