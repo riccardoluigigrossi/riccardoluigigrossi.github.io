@@ -18,6 +18,9 @@ type Project = {
   access: Access;
   slug: string;
   video?: string;
+  // Older work has a still instead: the whole object on the white it was rendered
+  // on, framed at the videos' size.
+  still?: string;
   // Confidential work has no deck to show: no pages, nothing to click.
   pages?: number;
 };
@@ -30,6 +33,38 @@ const PROJECTS: Project[] = [
   { name: 'EnergyLM', client: 'Aalto University', access: 'Public', slug: 'energylm', video: 'energylm.mp4', pages: 9 },
   { name: 'Safety Gate', client: 'European Commission', access: 'Public', slug: 'safety-gate', video: 'safety-gate.mp4', pages: 8 },
 ];
+
+// The industrial design years, from the 2024 portfolio, newest first: same
+// columns and same deck viewer as the work above.
+const EARLIER: Project[] = [
+  { name: 'AMRI', client: 'Aalto University', access: 'Public', slug: 'amri', still: 'amri.webp', pages: 4 },
+  { name: 'Ilmarinen', client: 'Konecranes', access: 'Public', slug: 'ilmarinen', still: 'ilmarinen.webp', pages: 4 },
+  { name: 'Puntoquadro', client: 'Milaniwood', access: 'Public', slug: 'puntoquadro', still: 'puntoquadro.webp', pages: 3 },
+  { name: 'Sottosotto', client: 'Politecnico di Milano', access: 'Public', slug: 'sottosotto', still: 'sottosotto.webp', pages: 2 },
+  { name: 'CB3', client: 'Carrefour', access: 'Public', slug: 'cb3', still: 'cb3.webp', pages: 4 },
+  { name: 'ORA', client: 'Politecnico di Milano', access: 'Public', slug: 'ora', still: 'ora.webp', pages: 3 },
+  { name: '+ST', client: 'Politecnico di Milano', access: 'Public', slug: 'plus-st', still: 'plus-st.webp', pages: 4 },
+  { name: 'CON', client: 'Politecnico di Milano', access: 'Public', slug: 'con', still: 'con.webp', pages: 3 },
+  { name: 'TICI', client: 'Politecnico di Milano', access: 'Public', slug: 'tici', still: 'tici.webp', pages: 3 },
+  { name: 'SCARNO', client: 'Personal project', access: 'Public', slug: 'scarno', still: 'scarno.webp', pages: 3 },
+];
+
+// Everything that opens at #/pdf/<slug>.
+const DECKS = [...PROJECTS, ...EARLIER];
+
+// The universities in About: hovering plays a flip through what I made there, the
+// same way the work's videos play. Aalto's link opens the master's thesis itself;
+// the bachelor's booklet at Politecnico was only ever printed.
+const THESIS = {
+  slug: 'thesis',
+  video: 'thesis.mp4',
+  url: 'https://aaltodoc.aalto.fi/items/ae994b1d-59a3-4c8e-ba8e-eea1621d2954',
+};
+const BOOKLET = {
+  slug: 'booklet',
+  video: 'booklet.mp4',
+  url: 'https://www.polimi.it/en/',
+};
 
 const VIDEO_W = 480;
 const VIDEO_H = 287;
@@ -130,7 +165,7 @@ export default function App() {
   const isNarrow = useIsNarrow();
   useEffect(() => installTabSnake(), []);
   const openProject = hash.startsWith('#/pdf/')
-    ? PROJECTS.find((p) => p.slug === hash.slice('#/pdf/'.length) && p.pages)
+    ? DECKS.find((p) => p.slug === hash.slice('#/pdf/'.length) && p.pages)
     : undefined;
   return (
     <>
@@ -209,6 +244,7 @@ function Home({ routeOpen }: { routeOpen: boolean }) {
   });
   const toggle = (key: SectionKey) =>
     setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  const [earlierOpen, setEarlierOpen] = useState(false);
 
   // The creature out on its own, eating the page, until the visitor is back.
   const [roam, setRoam] = useState<'off' | 'out'>('off');
@@ -459,6 +495,19 @@ function Home({ routeOpen }: { routeOpen: boolean }) {
     window.location.hash = `#/pdf/${slug}`;
   };
 
+  // A link whose preview (a video or a still) follows the cursor while it's over it.
+  // Mouse and trackpad screens only; a click puts it away.
+  const previewOnHover = (slug: string) => ({
+    onMouseEnter: hoverCapable
+      ? (e: React.MouseEvent) => setHovered({ slug, x: e.clientX, y: e.clientY })
+      : undefined,
+    onMouseMove: hoverCapable
+      ? (e: React.MouseEvent) => setHovered({ slug, x: e.clientX, y: e.clientY })
+      : undefined,
+    onMouseLeave: hoverCapable ? () => setHovered(null) : undefined,
+    onClick: () => setHovered(null),
+  });
+
   const startPress = (slug: string, rowRect: DOMRect) => {
     pressStartRef.current = Date.now();
     setPressing({ slug, rowRect });
@@ -491,6 +540,7 @@ function Home({ routeOpen }: { routeOpen: boolean }) {
   const projectsWithVideo = PROJECTS.filter(
     (p): p is Project & { video: string } => !!p.video,
   );
+  const hoverVideos: { slug: string; video: string }[] = [...projectsWithVideo, THESIS, BOOKLET];
   const pos = hovered ? clampPosition(hovered.x, hovered.y) : null;
   const touchSize = pressing ? touchVideoSize() : null;
   const touchPos =
@@ -524,19 +574,21 @@ function Home({ routeOpen }: { routeOpen: boolean }) {
         <p className="mb-[24.883px]">
           I studied at{' '}
           <a
-            href="https://www.aalto.fi/en"
+            href={THESIS.url}
             target="_blank"
             rel="noopener noreferrer"
             className="underline"
+            {...previewOnHover(THESIS.slug)}
           >
             Aalto University
           </a>{' '}
           and{' '}
           <a
-            href="https://www.polimi.it/en/"
+            href={BOOKLET.url}
             target="_blank"
             rel="noopener noreferrer"
             className="underline"
+            {...previewOnHover(BOOKLET.slug)}
           >
             Politecnico di Milano
           </a>
@@ -576,12 +628,12 @@ function Home({ routeOpen }: { routeOpen: boolean }) {
         onToggle={() => toggle('projects')}
         count={PROJECTS.length}
       >
-        <div className="projects-wrap">
+        <div className="projects-wrap mb-[24.883px]">
           <table className="projects-table aligned-table">
             <colgroup>
               <col className="name-col" />
               <col />
-              <col />
+              <col className="last-col" />
             </colgroup>
             <tbody>
               {PROJECTS.map((p) => {
@@ -686,6 +738,52 @@ function Home({ routeOpen }: { routeOpen: boolean }) {
             </tbody>
           </table>
         </div>
+        <p
+          role="button"
+          tabIndex={0}
+          aria-expanded={earlierOpen}
+          className={`earlier-toggle ${earlierOpen ? 'mb-[24.883px]' : 'mb-0'}`}
+          onClick={() => setEarlierOpen((v) => !v)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setEarlierOpen((v) => !v);
+            }
+          }}
+        >
+          [Earlier work]
+          {!earlierOpen && <span className="section-count"> {EARLIER.length}</span>}
+        </p>
+        {earlierOpen && (
+          <div className="projects-wrap">
+            <table className="projects-table aligned-table">
+              <colgroup>
+                <col className="name-col" />
+                <col />
+                <col className="last-col" />
+              </colgroup>
+              <tbody>
+                {EARLIER.map((p) => (
+                  <tr key={p.slug}>
+                    <td>
+                      {/* Hovering shows the still, like the videos above; clicking opens the deck. */}
+                      <a
+                        href={`#/pdf/${p.slug}`}
+                        className="underline"
+                        aria-label={`Open ${p.name}`}
+                        {...previewOnHover(p.slug)}
+                      >
+                        {p.name}
+                      </a>
+                    </td>
+                    <td>{p.client}</td>
+                    <td style={{ userSelect: 'none' }}>{p.access}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Section>
 
       <Section
@@ -758,7 +856,7 @@ function Home({ routeOpen }: { routeOpen: boolean }) {
         </div>
       )}
 
-      {projectsWithVideo.map((p) => {
+      {hoverVideos.map((p) => {
         const hoverActive = hoverCapable && hovered?.slug === p.slug && pos !== null;
         const touchActive =
           !hoverCapable && pressing?.slug === p.slug && touchPos !== null && touchSize !== null;
@@ -794,6 +892,38 @@ function Home({ routeOpen }: { routeOpen: boolean }) {
           />
         );
       })}
+      {/* Loaded as soon as the list opens, so the first hover isn't a blank. */}
+      {hoverCapable &&
+        open.projects &&
+        earlierOpen &&
+        EARLIER.map((p) => {
+          const active = hovered?.slug === p.slug && pos !== null;
+          return (
+            <img
+              key={p.slug}
+              src={`/stills/${p.still}`}
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+              style={{
+                position: 'fixed',
+                width: VIDEO_W,
+                height: VIDEO_H,
+                objectFit: 'cover',
+                pointerEvents: 'none',
+                zIndex: 50,
+                background: '#fff',
+                // The videos' shadow, plus a hairline so white still has an edge on white.
+                boxShadow: active
+                  ? '0 8px 32px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.06)'
+                  : undefined,
+                ...(active
+                  ? { left: pos!.left, top: pos!.top, opacity: 1 }
+                  : { left: -99999, top: -99999, opacity: 0 }),
+              }}
+            />
+          );
+        })}
       <AsciiWeather kind={activeSky} daylight={daylight} />
       {roam === 'out' && !routeOpen && destroy === 'idle' && <SnakeDestroy fromSide />}
       {destroy === 'falling' && (

@@ -439,6 +439,8 @@
 .projects-table {
   /* Widest name is "Agentic Experience" (159px) plus the 24px cell gutter. */
   --project-name-col-width: 188px;
+  /* "Confidential", so Earlier work's last column lines up with Work's. */
+  --project-last-col-width: 97px;
   --project-mobile-table-width: 34rem;
   width: 100%;
   border-collapse: collapse;
@@ -447,6 +449,10 @@
 
 .aligned-table .name-col {
   width: var(--project-name-col-width);
+}
+
+.aligned-table .last-col {
+  width: var(--project-last-col-width);
 }
 
 .projects-table td {
@@ -464,6 +470,12 @@
 
 .section-count {
   opacity: 0.5;
+}
+
+/* Opens the older work under the Work table. */
+.earlier-toggle {
+  cursor: pointer;
+  user-select: none;
 }
 
 /* Press ? ------------------------------------------------------------------ */
@@ -595,6 +607,8 @@
   }
 
   .projects-table {
+    /* "Agentic Experience" plus the wider phone gutter, so both tables line up. */
+    --project-name-col-width: 190px;
     width: max-content;
     min-width: var(--project-mobile-table-width);
   }
